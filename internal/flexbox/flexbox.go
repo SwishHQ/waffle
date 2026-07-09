@@ -4,11 +4,11 @@
 //
 // Owning the engine (rather than binding an external Yoga port) keeps the
 // dependency graph clean and gives the pagination step the re-layout control it
-// needs. This is the core, single-line implementation: flex-direction row/column,
-// grow/shrink, justify-content, align-items/self (including stretch), the full
-// box model (margin/padding/border), and gap. flex-wrap, percentages,
-// aspect-ratio, min/max constraints, absolute positioning, and reversed
-// directions are layered on in later passes.
+// needs. The core implementation covers flex-direction row/column, grow/shrink,
+// justify-content, align-items/self (including stretch), the full box model
+// (margin/padding/border), gap, percentages, aspect-ratio, absolute
+// positioning, and flex-wrap (wrap/wrap-reverse) with align-content. Min/max
+// constraints and reversed directions are layered on in later passes.
 //
 // All coordinates in Layout are border-box and relative to the parent's
 // content-box origin, matching react-pdf's node model.
@@ -35,6 +35,18 @@ const (
 	JustifySpaceEvenly
 )
 
+// Wrap controls whether flow children are laid out on a single main-axis line
+// or may break onto multiple lines (flex-wrap). The zero value is NoWrap,
+// matching react-pdf's default; WrapReverse wraps and reverses the order of
+// the lines along the cross axis.
+type Wrap int
+
+const (
+	WrapNoWrap Wrap = iota
+	WrapWrap
+	WrapReverse
+)
+
 // Position is a node's positioning scheme. Absolute takes the node out of flow
 // and positions it via Top/Right/Bottom/Left against the parent's content box.
 // Relative is currently treated as Static (in-flow) for layout.
@@ -46,9 +58,11 @@ const (
 	PositionAbsolute
 )
 
-// Align is a cross-axis alignment (align-items / align-self). AlignAuto on a
-// child defers to the container's align-items; AlignAuto on a container means
-// stretch.
+// Align is a cross-axis alignment (align-items / align-self / align-content).
+// AlignAuto on a child defers to the container's align-items; AlignAuto on a
+// container means stretch for align-items and flex-start for align-content.
+// AlignSpaceBetween and AlignSpaceAround are meaningful only for align-content;
+// elsewhere they fall back to flex-start.
 type Align int
 
 const (
@@ -57,6 +71,8 @@ const (
 	AlignCenter
 	AlignFlexEnd
 	AlignStretch
+	AlignSpaceBetween
+	AlignSpaceAround
 )
 
 // DimKind distinguishes the kinds of a dimension value.
@@ -101,10 +117,12 @@ func (d Dim) resolve(avail float64) (float64, bool) {
 // Style holds the resolved layout inputs for a node. Lengths are in points;
 // percentages are resolved by the caller before layout.
 type Style struct {
-	Direction  Direction
-	Justify    Justify
-	AlignItems Align // container cross alignment; AlignAuto ⇒ stretch
-	AlignSelf  Align // per-child override; AlignAuto ⇒ use parent's AlignItems
+	Direction    Direction
+	Wrap         Wrap // flex-wrap; the zero value (NoWrap) keeps all children on one line
+	Justify      Justify
+	AlignItems   Align // container cross alignment; AlignAuto ⇒ stretch
+	AlignSelf    Align // per-child override; AlignAuto ⇒ use parent's AlignItems
+	AlignContent Align // cross-axis distribution of wrapped lines; AlignAuto ⇒ flex-start
 
 	Grow   float64
 	Shrink float64
@@ -120,7 +138,7 @@ type Style struct {
 	PaddingTop, PaddingRight, PaddingBottom, PaddingLeft float64
 	BorderTop, BorderRight, BorderBottom, BorderLeft     float64
 
-	Gap float64 // space between children along the main axis
+	Gap float64 // space between children along the main axis and between wrapped lines along the cross axis
 }
 
 func (s *Style) isAbsolute() bool { return s.Position == PositionAbsolute }
