@@ -2,6 +2,7 @@ package feast
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 
 	"github.com/swish/feast/internal/contract"
@@ -74,6 +75,12 @@ func docOptions(root *tree.Node) pdf.Options {
 		// "useOutlines" → "UseOutlines", "twoColumnLeft" → "TwoColumnLeft".
 		PageMode:   ucfirst(get("pageMode")),
 		PageLayout: ucfirst(get("pageLayout")),
+		// Encryption (standard security handler) when a password is present.
+		UserPassword:  get("userPassword"),
+		OwnerPassword: get("ownerPassword"),
+	}
+	if p, ok := propInt32(root.Props, "permissions"); ok {
+		o.Permissions = p
 	}
 	if o.Creator == "" {
 		o.Creator = "feast"
@@ -82,6 +89,21 @@ func docOptions(root *tree.Node) pdf.Options {
 		o.Producer = "feast"
 	}
 	return o
+}
+
+// propInt32 reads a numeric prop as int32 (props carry json.Number).
+func propInt32(p map[string]any, key string) (int32, bool) {
+	switch v := p[key].(type) {
+	case json.Number:
+		if n, err := v.Int64(); err == nil {
+			return int32(n), true
+		}
+	case float64:
+		return int32(v), true
+	case int:
+		return int32(v), true
+	}
+	return 0, false
 }
 
 func ucfirst(s string) string {

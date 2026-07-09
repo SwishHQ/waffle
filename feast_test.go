@@ -75,3 +75,29 @@ func findPDFCPU() string {
 	}
 	return ""
 }
+
+// A Document with a userPassword must produce an encrypted, still-valid PDF.
+func TestRenderTreeEncrypted(t *testing.T) {
+	doc := `{"version":"feast-tree/v1","document":{"props":{"userPassword":"secret"},"children":[
+		{"type":"PAGE","props":{"size":[200,200]},"children":[
+			{"type":"TEXT","props":{"style":{"fontSize":14}},"children":[{"type":"TEXT_INSTANCE","value":"locked"}]}
+		]}
+	]}}`
+	var buf bytes.Buffer
+	if _, err := RenderTree(context.Background(), []byte(doc), &buf); err != nil {
+		t.Fatalf("RenderTree: %v", err)
+	}
+	if !bytes.Contains(buf.Bytes(), []byte("/Encrypt")) || !bytes.Contains(buf.Bytes(), []byte("/Filter /Standard")) {
+		t.Fatal("expected an /Encrypt dictionary (standard security handler)")
+	}
+	if bin := findPDFCPU(); bin != "" {
+		p := filepath.Join(t.TempDir(), "enc.pdf")
+		if err := os.WriteFile(p, buf.Bytes(), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		// pdfcpu (pflag) needs the long form; validates only with the password.
+		if out, err := exec.Command(bin, "validate", "-m", "strict", "--upw", "secret", p).CombinedOutput(); err != nil {
+			t.Fatalf("pdfcpu validate (with password) failed: %v\n%s", err, out)
+		}
+	}
+}
