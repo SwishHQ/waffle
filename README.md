@@ -75,13 +75,14 @@ feast tree.json   out.pdf                   # a pre-serialized feast-tree/v1 →
 The engine is feature-complete for the core react-pdf surface, and React runs in-process:
 
 - **PDF writer** (`internal/pdf`) — object model, deterministic xref/trailer, FlateDecode streams, content-stream operator builder, 14 standard Type1 fonts with Adobe Core AFM metrics, image XObjects with SMask.
-- **Layout** — flexbox engine (grow/shrink/justify/align, percentages, absolute/fixed positioning, aspect-ratio), react-pdf-shaped stylesheet (units, colors, shorthands, media queries, inheritance).
+- **Layout** — flexbox engine (grow/shrink/justify/align, percentages, absolute/fixed positioning, aspect-ratio, `flexWrap` + `alignContent`), react-pdf-shaped stylesheet (units, colors, shorthands, media queries, inheritance).
 - **Text** — measurement, greedy wrapping, text-align incl. justify, line-height.
 - **Pagination** — block + mid-element splitting, forced breaks, `minPresenceAhead`, orphans/widows, fixed headers/footers, `{pageNumber}`/`{totalPages}` templates.
-- **Graphics** — JPEG/PNG decode, image `objectFit` (fill/contain/cover/none/scale-down, centered + clipped), SVG (paths + shapes), Canvas replay.
+- **Graphics** — JPEG/PNG decode from data URI, **http(s) URL, or file path**; image `objectFit` (fill/contain/cover/none/scale-down, centered + clipped); SVG (paths + shapes); Canvas replay.
 - **Links** — block-level `<Link src>` renders a clickable URI annotation.
 - **Rounded corners** — `borderRadius` (per-corner + `%`) on backgrounds, uniform borders, and image clipping (circular avatars via `borderRadius: '50%'`).
 - **Opacity** — `opacity` via ExtGState, applied to a box and its subtree, with CSS-style nested multiplication.
+- **Encryption** — `<Document userPassword ownerPassword permissions>` produces a password-protected PDF (standard security handler, RC4-128).
 - **JS engine** (`internal/jsruntime`) — esbuild transpiles JSX/TSX and bundles embedded React + `@feast/react`; goja executes it to produce a `feast-tree/v1` document. Real React runs: components, props, `.map`, **hooks** (`useState`/`useMemo`/`useContext`/`useRef`/`useReducer`/…), **context** (`<Ctx.Provider>` + `useContext`), and `React.memo`/`forwardRef`.
 
   **Function render-props** work too: `<Text render={({ pageNumber, totalPages }) => \`${pageNumber} / ${totalPages}\`} />` is evaluated on the live VM per page during pagination (the closure stays in goja; the Go engine calls back with each page's context).
