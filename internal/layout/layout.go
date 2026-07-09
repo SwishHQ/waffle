@@ -39,8 +39,8 @@ type ImageInfo struct {
 }
 
 // TextInfo is the resolved text content and typography for a Text box, ready to
-// paint. BaseFont is a standard-14 font name; it is empty for fonts that require
-// embedding (not yet supported), in which case the text is not painted.
+// paint. Exactly one font source is set: BaseFont (a standard-14 font name) for
+// standard fonts, or EmbeddedFont for a registered custom font.
 type TextInfo struct {
 	Content      string
 	Lines        []string // wrapped lines

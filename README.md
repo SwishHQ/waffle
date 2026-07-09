@@ -76,7 +76,7 @@ The engine is feature-complete for the core react-pdf surface, and React runs in
 
 - **PDF writer** (`internal/pdf`) — object model, deterministic xref/trailer, FlateDecode streams, content-stream operator builder, 14 standard Type1 fonts with Adobe Core AFM metrics, image XObjects with SMask.
 - **Layout** — flexbox engine (grow/shrink/justify/align, percentages, absolute/fixed positioning, aspect-ratio, `flexWrap` + `alignContent`), react-pdf-shaped stylesheet (units, colors, shorthands, media queries, inheritance).
-- **Text** — measurement, greedy wrapping, text-align incl. justify, line-height.
+- **Text** — measurement, greedy wrapping, text-align incl. justify, line-height; the 14 standard fonts **plus custom fonts** (`Font.register` a TTF as a data URI → embedded via `FontFile2`, measured with real glyph advances).
 - **Pagination** — block + mid-element splitting, forced breaks, `minPresenceAhead`, orphans/widows, fixed headers/footers, `{pageNumber}`/`{totalPages}` templates.
 - **Graphics** — JPEG/PNG decode from data URI, **http(s) URL, or file path**; image `objectFit` (fill/contain/cover/none/scale-down, centered + clipped); SVG (paths + shapes); Canvas replay.
 - **Links** — block-level `<Link src>` renders a clickable URI annotation.
