@@ -594,3 +594,41 @@ func findTextInfo(b *layout.Box, content string) *layout.TextInfo {
 	}
 	return nil
 }
+
+// A rotated element must render to a strict-valid PDF (transform CTM applied).
+const transformDoc = `
+import { Document, Page, View, Text } from '@feast/react';
+export default function App() {
+  return (
+    <Document>
+      <Page size="A6" style={{ padding: 24 }}>
+        <View style={{ width: 120, height: 30, backgroundColor: '#457b9d', transform: 'rotate(-12deg) translate(6, 4)' }} />
+        <Text style={{ transform: 'rotate(45deg)', fontSize: 28, color: '#e63946' }}>DRAFT</Text>
+      </Page>
+    </Document>
+  );
+}
+`
+
+func TestRenderReactTransformPDF(t *testing.T) {
+	tmpl, err := LoadTemplate([]byte(transformDoc), TemplateOptions{Filename: "xf.jsx"})
+	if err != nil {
+		t.Fatalf("LoadTemplate: %v", err)
+	}
+	var buf bytes.Buffer
+	if _, err := tmpl.Render(context.Background(), nil, &buf); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	if !bytes.HasPrefix(buf.Bytes(), []byte("%PDF-")) {
+		t.Fatal("output is not a PDF")
+	}
+	if bin := findPDFCPU(); bin != "" {
+		p := filepath.Join(t.TempDir(), "xf.pdf")
+		if err := os.WriteFile(p, buf.Bytes(), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if out, err := exec.Command(bin, "validate", "-m", "strict", p).CombinedOutput(); err != nil {
+			t.Fatalf("pdfcpu validate failed: %v\n%s", err, out)
+		}
+	}
+}

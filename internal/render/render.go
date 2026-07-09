@@ -18,6 +18,7 @@ import (
 	"github.com/swish/feast/internal/pdf"
 	"github.com/swish/feast/internal/pdf/afm"
 	"github.com/swish/feast/internal/stylesheet"
+	"github.com/swish/feast/internal/transform"
 )
 
 // Options configure rendering.
@@ -61,6 +62,8 @@ func Render(res *layout.Result, w io.Writer, opts Options) error {
 // parentOpacity is the inherited alpha; a box's own opacity multiplies into it
 // (matching CSS nesting) and applies to the box and its whole subtree.
 func paintBox(c *pdf.Content, box *layout.Box, pageH float64, ctx stylesheet.Context, parentOpacity float64) {
+	transformed := setupTransform(c, box, pageH)
+
 	op := parentOpacity * opacityOf(box.Style)
 	fade := opacityOf(box.Style) < 1
 	if fade {
@@ -79,6 +82,33 @@ func paintBox(c *pdf.Content, box *layout.Box, pageH float64, ctx stylesheet.Con
 	if fade {
 		c.Restore()
 	}
+	if transformed {
+		c.Restore()
+	}
+}
+
+// setupTransform applies a CSS `transform` as a CTM around the box's whole
+// subtree, and reports whether it wrapped (so paintBox can Restore). The
+// transform is authored in layout space (y-down, origin top-left) about the
+// transform-origin (default: box center); the renderer paints in PDF space
+// (y-up), so the matrix is conjugated by the page flip F(x,y)=(x, pageH-y):
+// CTM = F · originShift(T) · F.
+func setupTransform(c *pdf.Content, box *layout.Box, pageH float64) bool {
+	s := str(box.Style["transform"])
+	if s == "" {
+		return false
+	}
+	m, err := transform.Parse(s)
+	if err != nil {
+		return false
+	}
+	f := box.Frame
+	ox, oy := f.X+f.W/2, f.Y+f.H/2 // transform-origin: center, in layout coords
+	t := m.AboutOrigin(ox, oy)
+	flip := transform.Matrix{A: 1, D: -1, F: pageH}
+	M := flip.Mul(t).Mul(flip)
+	c.Save().Transform(M.A, M.B, M.C, M.D, M.E, M.F)
+	return true
 }
 
 // opacityOf reads the opacity style (0–1; percent supported), defaulting to 1.
