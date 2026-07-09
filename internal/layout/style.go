@@ -61,6 +61,10 @@ func toFlexStyle(r map[string]any, ctx stylesheet.Context) flexbox.Style {
 
 	s.Width = dim(r, "width", ctx)
 	s.Height = dim(r, "height", ctx)
+	s.MinWidth = dim(r, "minWidth", ctx)
+	s.MaxWidth = dim(r, "maxWidth", ctx)
+	s.MinHeight = dim(r, "minHeight", ctx)
+	s.MaxHeight = dim(r, "maxHeight", ctx)
 	if ar, ok := num(r["aspectRatio"]); ok && ar > 0 {
 		s.AspectRatio = ar
 	}

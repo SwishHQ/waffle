@@ -25,7 +25,7 @@ func measure(n *Node, availW, availH float64) Size {
 			h = v
 		}
 		w, h = applyAspect(s, w, h)
-		return Size{w, h}
+		return Size{s.clampWidth(w, availW), s.clampHeight(h, availH)}
 	}
 	w, wOK := s.Width.resolve(availW)
 	h, hOK := s.Height.resolve(availH)
@@ -44,7 +44,7 @@ func measure(n *Node, availW, availH float64) Size {
 		}
 	}
 	w, h = applyAspect(s, w, h)
-	return Size{w, h}
+	return Size{s.clampWidth(w, availW), s.clampHeight(h, availH)}
 }
 
 func intrinsicWidth(n *Node, availW, availH float64) float64 {
@@ -361,6 +361,17 @@ func arrangeLine(n *Node, line []item, cross, crossOffset float64, row bool, ori
 		free = 0
 	}
 
+	// Clamp each item's resolved main size to its own min/max (a one-shot clamp;
+	// freed space from a maxed item is not redistributed).
+	for i := range line {
+		st := &line[i].node.Style
+		if row {
+			line[i].main = st.clampWidth(line[i].main, mainAvail)
+		} else {
+			line[i].main = st.clampHeight(line[i].main, mainAvail)
+		}
+	}
+
 	lead, gapExtra := justifyOffsets(s.Justify, free, len(line))
 
 	cursor := lead
@@ -397,6 +408,11 @@ func arrangeLine(n *Node, line []item, cross, crossOffset float64, row bool, ori
 		default: // AlignFlexStart
 			crossSize = it.crossBase
 			crossPos = it.crossMargin0
+		}
+		if row {
+			crossSize = it.node.Style.clampHeight(crossSize, cross)
+		} else {
+			crossSize = it.node.Style.clampWidth(crossSize, cross)
 		}
 		crossPos += crossOffset
 

@@ -7,8 +7,8 @@
 // needs. The core implementation covers flex-direction row/column, grow/shrink,
 // justify-content, align-items/self (including stretch), the full box model
 // (margin/padding/border), gap, percentages, aspect-ratio, absolute
-// positioning, and flex-wrap (wrap/wrap-reverse) with align-content. Min/max
-// constraints and reversed directions are layered on in later passes.
+// positioning, flex-wrap (wrap/wrap-reverse) with align-content, and min/max
+// width/height. Reversed directions are layered on in later passes.
 //
 // All coordinates in Layout are border-box and relative to the parent's
 // content-box origin, matching react-pdf's node model.
@@ -128,8 +128,10 @@ type Style struct {
 	Shrink float64
 	Basis  Dim // flex-basis; Auto ⇒ use the main-dimension size
 
-	Width, Height Dim
-	AspectRatio   float64 // width/height; when one dimension is auto, derive the other
+	Width, Height        Dim
+	MinWidth, MaxWidth   Dim // min/max constraints; DimAuto ⇒ unconstrained
+	MinHeight, MaxHeight Dim
+	AspectRatio          float64 // width/height; when one dimension is auto, derive the other
 
 	Position                 Position
 	Top, Right, Bottom, Left Dim // insets for absolute positioning
@@ -142,6 +144,30 @@ type Style struct {
 }
 
 func (s *Style) isAbsolute() bool { return s.Position == PositionAbsolute }
+
+// clampWidth clamps v to [MinWidth, MaxWidth] resolved against avail. CSS order:
+// cap to max first, then floor to min, so min wins a min>max conflict. DimAuto
+// bounds don't constrain.
+func (s *Style) clampWidth(v, avail float64) float64 {
+	if mx, ok := s.MaxWidth.resolve(avail); ok && v > mx {
+		v = mx
+	}
+	if mn, ok := s.MinWidth.resolve(avail); ok && v < mn {
+		v = mn
+	}
+	return v
+}
+
+// clampHeight clamps v to [MinHeight, MaxHeight] resolved against avail.
+func (s *Style) clampHeight(v, avail float64) float64 {
+	if mx, ok := s.MaxHeight.resolve(avail); ok && v > mx {
+		v = mx
+	}
+	if mn, ok := s.MinHeight.resolve(avail); ok && v < mn {
+		v = mn
+	}
+	return v
+}
 
 // Size is a measured width/height.
 type Size struct{ W, H float64 }
