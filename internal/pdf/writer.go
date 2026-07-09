@@ -15,8 +15,16 @@ type Writer struct {
 
 	Root    Reference // catalog; required
 	Info    Reference // document info dict; optional
+	Encrypt Reference // encryption dictionary; optional
 	ID      [2][]byte // file identifier halves; optional
 	Version string    // e.g. "1.4"; defaults to "1.4"
+
+	// encrypt, when non-nil, is consulted during WriteTo: each indirect
+	// object except the /Encrypt dictionary itself is transformed so its
+	// strings and stream data are encrypted for that object's number and
+	// generation. Nil means no encryption and byte-identical output to a
+	// writer without the hook.
+	encrypt *encryptor
 }
 
 // NewWriter returns an empty Writer.
@@ -65,7 +73,11 @@ func (w *Writer) WriteTo(out io.Writer) (int64, error) {
 		}
 		offsets[i] = buf.Len()
 		fmt.Fprintf(&buf, "%d 0 obj\n", i+1)
-		o.encode(&buf)
+		if w.encrypt != nil && i+1 != w.Encrypt.Num {
+			w.encrypt.transform(o, i+1, 0).encode(&buf)
+		} else {
+			o.encode(&buf)
+		}
 		buf.WriteString("\nendobj\n")
 	}
 
@@ -82,6 +94,9 @@ func (w *Writer) WriteTo(out io.Writer) (int64, error) {
 	tr[Name("Root")] = w.Root
 	if w.Info.valid() {
 		tr[Name("Info")] = w.Info
+	}
+	if w.Encrypt.valid() {
+		tr[Name("Encrypt")] = w.Encrypt
 	}
 	if len(w.ID[0]) > 0 || len(w.ID[1]) > 0 {
 		tr[Name("ID")] = Array{HexString(w.ID[0]), HexString(w.ID[1])}

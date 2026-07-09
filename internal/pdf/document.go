@@ -23,6 +23,19 @@ type Options struct {
 
 	CreationDate time.Time // omitted from /Info when zero
 	ModDate      time.Time // omitted from /Info when zero
+
+	// UserPassword and OwnerPassword enable standard-security-handler
+	// encryption (RC4 128-bit, V=2/R=3) when either is non-empty. An empty
+	// user password with a non-empty owner password yields a file that opens
+	// without a password but whose permissions require the owner password to
+	// change.
+	UserPassword  string
+	OwnerPassword string
+	// Permissions is the encryption dictionary's /P flags value. Zero means
+	// "everything allowed" and is replaced by -4 (0xFFFFFFFC): every flag
+	// bit set except bits 1–2, which are reserved and shall be 0 per
+	// PDF 32000-1 Table 22. Ignored unless encryption is enabled.
+	Permissions int32
 }
 
 // Document assembles a PDF: metadata, a page tree, and shared font objects.
@@ -175,6 +188,9 @@ func (d *Document) WriteTo(out io.Writer) (int64, error) {
 		d.w.Info = d.w.Add(info)
 	}
 	d.w.ID = d.deriveID()
+	if d.opts.UserPassword != "" || d.opts.OwnerPassword != "" {
+		d.setupEncryption() // needs d.w.ID; must run after deriveID
+	}
 
 	return d.w.WriteTo(out)
 }
