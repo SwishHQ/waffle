@@ -3,10 +3,13 @@ package feast
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"golang.org/x/image/font/gofont/goregular"
 
 	"github.com/swish/feast/internal/contract"
 	"github.com/swish/feast/internal/layout"
@@ -507,4 +510,87 @@ func TestRenderReactOpacityPDF(t *testing.T) {
 			t.Fatalf("pdfcpu validate failed: %v\n%s", err, out)
 		}
 	}
+}
+
+// A JSX document that Font.registers a real TTF (as a data URI) and uses it via
+// fontFamily must embed and render in that font — the custom-font path end to end.
+func TestRenderReactCustomFont(t *testing.T) {
+	uri := "data:font/ttf;base64," + base64.StdEncoding.EncodeToString(goregular.TTF)
+	doc := `
+import { Document, Page, Text, Font } from '@feast/react';
+Font.register({ family: 'MyGo', src: '` + uri + `' });
+export default function App() {
+  return (
+    <Document>
+      <Page size="A6" style={{ padding: 20 }}>
+        <Text style={{ fontFamily: 'MyGo', fontSize: 20 }}>Custom font!</Text>
+      </Page>
+    </Document>
+  );
+}
+`
+	tmpl, err := LoadTemplate([]byte(doc), TemplateOptions{Filename: "font.jsx"})
+	if err != nil {
+		t.Fatalf("LoadTemplate: %v", err)
+	}
+
+	// Layout level: the Text box must resolve to the embedded custom font.
+	inst, err := tmpl.prog.Instantiate(nil)
+	if err != nil {
+		t.Fatalf("Instantiate: %v", err)
+	}
+	ct, err := contract.Parse(inst.Tree())
+	if err != nil {
+		t.Fatalf("contract.Parse: %v", err)
+	}
+	tr, err := tree.Build(ct)
+	if err != nil {
+		t.Fatalf("tree.Build: %v", err)
+	}
+	res, err := layout.Layout(tr, layout.Options{})
+	if err != nil {
+		t.Fatalf("layout.Layout: %v", err)
+	}
+	ti := findTextInfo(res.Pages[0].Root, "Custom font!")
+	if ti == nil {
+		t.Fatal("no text box with the content")
+	}
+	if ti.EmbeddedFont == nil {
+		t.Fatalf("Text did not resolve to the registered custom font (BaseFont=%q)", ti.BaseFont)
+	}
+	if ti.BaseFont != "" {
+		t.Errorf("custom-font text should have empty BaseFont, got %q", ti.BaseFont)
+	}
+
+	// PDF level: embedded TrueType present and strict-valid.
+	var buf bytes.Buffer
+	if _, err := tmpl.Render(context.Background(), nil, &buf); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	for _, want := range []string{"/Subtype /TrueType", "/FontFile2"} {
+		if !bytes.Contains(buf.Bytes(), []byte(want)) {
+			t.Errorf("PDF missing %q (custom font not embedded)", want)
+		}
+	}
+	if bin := findPDFCPU(); bin != "" {
+		p := filepath.Join(t.TempDir(), "font.pdf")
+		if err := os.WriteFile(p, buf.Bytes(), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if out, err := exec.Command(bin, "validate", "-m", "strict", p).CombinedOutput(); err != nil {
+			t.Fatalf("pdfcpu validate failed: %v\n%s", err, out)
+		}
+	}
+}
+
+func findTextInfo(b *layout.Box, content string) *layout.TextInfo {
+	if b.Text != nil && b.Text.Content == content {
+		return b.Text
+	}
+	for _, c := range b.Children {
+		if ti := findTextInfo(c, content); ti != nil {
+			return ti
+		}
+	}
+	return nil
 }

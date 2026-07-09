@@ -8,6 +8,7 @@ package layout
 import (
 	"github.com/swish/feast/internal/contract"
 	"github.com/swish/feast/internal/flexbox"
+	"github.com/swish/feast/internal/fontstore"
 	"github.com/swish/feast/internal/pdf"
 	"github.com/swish/feast/internal/stylesheet"
 	"github.com/swish/feast/internal/tree"
@@ -41,17 +42,18 @@ type ImageInfo struct {
 // paint. BaseFont is a standard-14 font name; it is empty for fonts that require
 // embedding (not yet supported), in which case the text is not painted.
 type TextInfo struct {
-	Content    string
-	Lines      []string // wrapped lines
-	BaseFont   string
-	Size       float64
-	Ascent     float64 // points from the box top to the baseline
-	LineHeight float64
-	Color      string
-	Orphans    int
-	Widows     int
-	Template   string // string render-prop template (page numbers); "" if none
-	CallbackID string // function render-prop callback id ($cb); "" if none
+	Content      string
+	Lines        []string // wrapped lines
+	BaseFont     string
+	Size         float64
+	Ascent       float64 // points from the box top to the baseline
+	LineHeight   float64
+	Color        string
+	Orphans      int
+	Widows       int
+	Template     string            // string render-prop template (page numbers); "" if none
+	CallbackID   string            // function render-prop callback id ($cb); "" if none
+	EmbeddedFont *pdf.EmbeddedFont // registered custom font to embed; nil for standard fonts
 }
 
 // Page is one laid-out page.
@@ -106,6 +108,8 @@ type layoutNode struct {
 func Layout(t *tree.Tree, opts Options) (*Result, error) {
 	base := stylesheet.Context{DPI: opts.dpi(), RemBase: opts.remBase()}
 	res := &Result{Warnings: append([]string(nil), t.Warnings...)}
+	store, warns := buildFontStore(t.Fonts)
+	res.Warnings = append(res.Warnings, warns...)
 
 	for _, pageNode := range t.Root.Children {
 		if pageNode.Type != contract.TypePage {
@@ -116,7 +120,7 @@ func Layout(t *tree.Tree, opts Options) (*Result, error) {
 		ctx.PageW, ctx.PageH = w, h
 		media := stylesheet.MediaContext{Width: w, Height: h, Orientation: orientation}
 
-		ln := buildLayoutNode(pageNode, nil, media, ctx, opts.Eval)
+		ln := buildLayoutNode(pageNode, nil, media, ctx, opts.Eval, store)
 		flexbox.Calculate(ln.flex, w, h)
 
 		page := &Page{Width: w, Height: h, Root: toBox(ln, 0, 0)}
@@ -134,7 +138,7 @@ func Layout(t *tree.Tree, opts Options) (*Result, error) {
 // buildLayoutNode resolves a node's style (inheriting from parentEffective),
 // maps it to flexbox inputs, and recurses. TEXT_INSTANCE children are skipped
 // here; text measurement arrives in the text phase.
-func buildLayoutNode(node *tree.Node, parentEffective map[string]any, media stylesheet.MediaContext, ctx stylesheet.Context, eval Evaluator) *layoutNode {
+func buildLayoutNode(node *tree.Node, parentEffective map[string]any, media stylesheet.MediaContext, ctx stylesheet.Context, eval Evaluator, store *fontstore.Store) *layoutNode {
 	own := stylesheet.Resolve(node.Style, media)
 	eff := stylesheet.Inherit(parentEffective, own, node.Type == contract.TypeText)
 
@@ -144,7 +148,7 @@ func buildLayoutNode(node *tree.Node, parentEffective map[string]any, media styl
 	// A Text node is a measured leaf: its content is flattened and measured as a
 	// unit (rich inline runs and wrapping arrive with the text engine).
 	if node.Type == contract.TypeText {
-		if tr := resolveText(node, eff, ctx, eval); tr != nil {
+		if tr := resolveText(node, eff, ctx, eval, store); tr != nil {
 			ln.text = tr
 			fx.Measure = tr.measure
 		}
@@ -189,7 +193,7 @@ func buildLayoutNode(node *tree.Node, parentEffective map[string]any, media styl
 		if c.Type == contract.TypeTextInstance {
 			continue
 		}
-		child := buildLayoutNode(c, eff, media, ctx, eval)
+		child := buildLayoutNode(c, eff, media, ctx, eval, store)
 		ln.kids = append(ln.kids, child)
 		fx.Children = append(fx.Children, child.flex)
 	}
@@ -210,17 +214,18 @@ func toBox(ln *layoutNode, absX, absY float64) *Box {
 	}
 	if t := ln.text; t != nil {
 		box.Text = &TextInfo{
-			Content:    t.content,
-			Lines:      t.lines,
-			BaseFont:   t.base,
-			Size:       t.size,
-			Ascent:     t.ascent,
-			LineHeight: t.lineHeight,
-			Color:      t.color,
-			Orphans:    t.orphans,
-			Widows:     t.widows,
-			Template:   t.template,
-			CallbackID: t.callbackID,
+			Content:      t.content,
+			Lines:        t.lines,
+			BaseFont:     t.base,
+			Size:         t.size,
+			Ascent:       t.ascent,
+			LineHeight:   t.lineHeight,
+			Color:        t.color,
+			Orphans:      t.orphans,
+			Widows:       t.widows,
+			Template:     t.template,
+			CallbackID:   t.callbackID,
+			EmbeddedFont: t.embedded,
 		}
 	}
 	if im := ln.image; im != nil {

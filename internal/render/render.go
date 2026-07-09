@@ -195,7 +195,7 @@ func fitImage(fit string, bw, bh, iw, ih float64) (dw, dh, ox, oy float64, clip 
 // fonts (BaseFont == "") are skipped.
 func paintText(c *pdf.Content, box *layout.Box, pageH float64, ctx stylesheet.Context) {
 	t := box.Text
-	if t == nil || len(t.Lines) == 0 || t.BaseFont == "" {
+	if t == nil || len(t.Lines) == 0 || (t.BaseFont == "" && t.EmbeddedFont == nil) {
 		return
 	}
 	col := stylesheet.Color{A: 1} // default black
@@ -206,9 +206,18 @@ func paintText(c *pdf.Content, box *layout.Box, pageH float64, ctx stylesheet.Co
 	}
 	r, g, b := col.RGB()
 
-	metrics, err := afm.Load(t.BaseFont)
-	if err != nil {
-		return
+	// Line-width measurement for alignment/justify: an embedded font uses its own
+	// WinAnsi advance widths; a standard font uses AFM metrics.
+	var stringWidth func(string) float64
+	if t.EmbeddedFont != nil {
+		ef := t.EmbeddedFont
+		stringWidth = func(s string) float64 { return embeddedWidth(ef, s, t.Size) }
+	} else {
+		metrics, err := afm.Load(t.BaseFont)
+		if err != nil {
+			return
+		}
+		stringWidth = func(s string) float64 { return metrics.StringWidth(s, t.Size) }
 	}
 
 	insetLeft := lengthPt(box.Style, "borderLeftWidth", ctx) + lengthPt(box.Style, "paddingLeft", ctx)
@@ -219,9 +228,14 @@ func paintText(c *pdf.Content, box *layout.Box, pageH float64, ctx stylesheet.Co
 	top := box.Frame.Y + insetTop
 	align := str(box.Style["textAlign"])
 
-	c.Save().FillRGB(r, g, b).BeginText().SetFont(t.BaseFont, t.Size)
+	c.Save().FillRGB(r, g, b).BeginText()
+	if t.EmbeddedFont != nil {
+		c.SetEmbeddedFont(t.EmbeddedFont, t.Size)
+	} else {
+		c.SetFont(t.BaseFont, t.Size)
+	}
 	for i, line := range t.Lines {
-		lineW := metrics.StringWidth(line, t.Size)
+		lineW := stringWidth(line)
 		x := x0
 		wordSpace := 0.0
 		switch align {
@@ -239,6 +253,18 @@ func paintText(c *pdf.Content, box *layout.Box, pageH float64, ctx stylesheet.Co
 		c.WordSpacing(wordSpace).TextMatrix(1, 0, 0, 1, x, baseline).ShowText(line)
 	}
 	c.EndText().Restore()
+}
+
+// embeddedWidth measures a string's advance in an embedded font from its WinAnsi
+// advance widths (stored in 1000-unit text space).
+func embeddedWidth(ef *pdf.EmbeddedFont, s string, size float64) float64 {
+	total := 0.0
+	for _, code := range afm.WinAnsiEncode(s) {
+		if int(code) < len(ef.Widths) {
+			total += float64(ef.Widths[code])
+		}
+	}
+	return total / 1000 * size
 }
 
 func paintBackground(c *pdf.Content, box *layout.Box, pageH float64, ctx stylesheet.Context) {

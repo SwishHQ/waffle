@@ -8,6 +8,7 @@ import (
 	"github.com/swish/feast/internal/contract"
 	"github.com/swish/feast/internal/flexbox"
 	"github.com/swish/feast/internal/fontstore"
+	"github.com/swish/feast/internal/pdf"
 	"github.com/swish/feast/internal/pdf/afm"
 	"github.com/swish/feast/internal/stylesheet"
 	"github.com/swish/feast/internal/tree"
@@ -19,13 +20,14 @@ const defaultFontSize = 18
 // textResolve holds a Text node's flattened content and resolved typography.
 type textResolve struct {
 	content    string
-	base       string // standard-14 base font; "" if the font needs embedding
+	base       string            // standard-14 base font; "" when a custom font is embedded
+	embedded   *pdf.EmbeddedFont // registered custom font to embed; nil for standard fonts
 	size       float64
 	ascent     float64
 	lineHeight float64
 	color      string
-	metrics    *afm.Metrics
-	lines      []string // wrapped lines (set by the most recent measure)
+	measurer   fontstore.Font // measures StringWidth; a *afm.Metrics or a *fontstore.Face
+	lines      []string       // wrapped lines (set by the most recent measure)
 	orphans    int
 	widows     int
 	template   string // string render-prop template, substituted per page (page numbers)
@@ -36,7 +38,7 @@ type textResolve struct {
 // content to the available width and reports the widest line and the total
 // height (lines × line height). The wrapped lines are stored for the renderer.
 func (t *textResolve) measure(availW, availH float64) flexbox.Size {
-	if t.metrics == nil {
+	if t.measurer == nil {
 		return flexbox.Size{W: 0, H: t.lineHeight}
 	}
 	t.lines = t.wrap(availW)
@@ -45,7 +47,7 @@ func (t *textResolve) measure(availW, availH float64) flexbox.Size {
 	}
 	maxW := 0.0
 	for _, ln := range t.lines {
-		if w := t.metrics.StringWidth(ln, t.size); w > maxW {
+		if w := t.measurer.StringWidth(ln, t.size); w > maxW {
 			maxW = w
 		}
 	}
@@ -67,7 +69,7 @@ func (t *textResolve) wrap(maxW float64) []string {
 	cur := words[0]
 	for _, w := range words[1:] {
 		trial := cur + " " + w
-		if t.metrics.StringWidth(trial, t.size) <= maxW {
+		if t.measurer.StringWidth(trial, t.size) <= maxW {
 			cur = trial
 		} else {
 			lines = append(lines, cur)
@@ -77,7 +79,7 @@ func (t *textResolve) wrap(maxW float64) []string {
 	return append(lines, cur)
 }
 
-func resolveText(node *tree.Node, style map[string]any, ctx stylesheet.Context, eval Evaluator) *textResolve {
+func resolveText(node *tree.Node, style map[string]any, ctx stylesheet.Context, eval Evaluator, store *fontstore.Store) *textResolve {
 	content := collectText(node)
 
 	// A render prop provides per-page content, substituted after pagination once
@@ -117,10 +119,21 @@ func resolveText(node *tree.Node, style map[string]any, ctx stylesheet.Context, 
 		weight = w
 	}
 	fstyle := fontstore.ParseStyle(str(style["fontStyle"]))
-	if base, ok := fontstore.StandardBaseFont(fontFamilyOf(style), weight, fstyle); ok {
+	family := fontFamilyOf(style)
+
+	// A registered custom font (Font.register) wins over the standard fonts.
+	if store != nil {
+		if face, ok := store.ResolveFace(family, weight, fstyle); ok {
+			tr.measurer = face
+			tr.embedded = face.EmbeddedFont()
+			tr.ascent = face.Descriptor().Ascent / 1000 * size
+			return tr
+		}
+	}
+	if base, ok := fontstore.StandardBaseFont(family, weight, fstyle); ok {
 		tr.base = base
 		if m, err := afm.Load(base); err == nil {
-			tr.metrics = m
+			tr.measurer = m
 			tr.ascent = m.Ascender / 1000 * size
 		}
 	}

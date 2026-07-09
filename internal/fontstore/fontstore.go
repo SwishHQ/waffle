@@ -136,6 +136,17 @@ func (s *Store) Resolve(family string, weight int, style Style) (Font, bool) {
 	return nil, false
 }
 
+// ResolveFace returns a registered face for family/weight/style, or false if the
+// family has no registered faces. Unlike Resolve it never falls back to a
+// standard PDF font — the caller handles standard fonts separately (they don't
+// need embedding). weight 0 is treated as 400.
+func (s *Store) ResolveFace(family string, weight int, style Style) (*Face, bool) {
+	if weight == 0 {
+		weight = 400
+	}
+	return s.resolveRegistered(family, weight, style)
+}
+
 func (s *Store) resolveRegistered(family string, weight int, style Style) (*Face, bool) {
 	s.mu.RLock()
 	faces := s.families[strings.ToLower(family)]

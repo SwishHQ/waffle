@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-text/typesetting/font"
 
+	"github.com/swish/feast/internal/pdf"
 	"github.com/swish/feast/internal/pdf/afm"
 )
 
@@ -123,6 +124,26 @@ func (f *Face) FontName() string {
 		return name + "-Italic"
 	}
 	return name
+}
+
+// EmbeddedFont builds the pdf.EmbeddedFont for this face (program bytes +
+// descriptor + WinAnsi widths), ready to embed as a simple TrueType PDF font.
+func (f *Face) EmbeddedFont() *pdf.EmbeddedFont {
+	d := f.Descriptor()
+	return &pdf.EmbeddedFont{
+		Name:    f.FontName(),
+		Program: f.data,
+		Descriptor: pdf.FontDescriptor{
+			Ascent:      d.Ascent,
+			Descent:     d.Descent,
+			CapHeight:   d.CapHeight,
+			BBox:        d.BBox,
+			ItalicAngle: d.ItalicAngle,
+			Flags:       d.Flags,
+			StemV:       d.StemV,
+		},
+		Widths: f.WinAnsiWidths(),
+	}
 }
 
 // isFixedPitch heuristically detects a monospace font by comparing the advances
