@@ -37,6 +37,16 @@ func toFlexStyle(r map[string]any, ctx stylesheet.Context) flexbox.Style {
 
 	s.AlignItems = toAlign(str(r["alignItems"]))
 	s.AlignSelf = toAlign(str(r["alignSelf"]))
+	s.AlignContent = toAlign(str(r["alignContent"]))
+
+	switch str(r["flexWrap"]) {
+	case "wrap":
+		s.Wrap = flexbox.WrapWrap
+	case "wrap-reverse":
+		s.Wrap = flexbox.WrapReverse
+	default:
+		s.Wrap = flexbox.WrapNoWrap
+	}
 
 	if f, ok := num(r["flexGrow"]); ok {
 		s.Grow = f
@@ -104,6 +114,10 @@ func toAlign(s string) flexbox.Align {
 		return flexbox.AlignFlexEnd
 	case "stretch":
 		return flexbox.AlignStretch
+	case "space-between":
+		return flexbox.AlignSpaceBetween
+	case "space-around":
+		return flexbox.AlignSpaceAround
 	case "baseline":
 		return flexbox.AlignFlexStart // baseline alignment not yet modeled
 	default:
