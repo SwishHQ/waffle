@@ -3,7 +3,6 @@ package layout
 import (
 	"encoding/base64"
 	"fmt"
-	"strings"
 
 	"github.com/swish/feast/internal/contract"
 	"github.com/swish/feast/internal/flexbox"
@@ -50,10 +49,8 @@ func decodeImageSrc(node *tree.Node) (*imaging.Image, error) {
 	}
 	switch v := src.(type) {
 	case string:
-		if strings.HasPrefix(v, "data:") {
-			return imaging.DecodeDataURI(v)
-		}
-		return nil, fmt.Errorf("layout: image URL/file source not supported yet: %.32q", v)
+		// data: URI, http(s) URL, or filesystem path — imaging.Load dispatches.
+		return imaging.Load(v)
 	case contract.InlineAsset:
 		raw, err := base64.StdEncoding.DecodeString(v.Base64)
 		if err != nil {
@@ -61,8 +58,8 @@ func decodeImageSrc(node *tree.Node) (*imaging.Image, error) {
 		}
 		return imaging.Decode(raw)
 	case map[string]any:
-		if u, ok := v["uri"].(string); ok && strings.HasPrefix(u, "data:") {
-			return imaging.DecodeDataURI(u)
+		if u, ok := v["uri"].(string); ok && u != "" {
+			return imaging.Load(u)
 		}
 	}
 	return nil, fmt.Errorf("layout: unsupported image source")
