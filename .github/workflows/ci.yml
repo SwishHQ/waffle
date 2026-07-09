@@ -1,0 +1,28 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    env:
+      # Pin to the installed 1.24 toolchain; never auto-upgrade to 1.25+.
+      GOTOOLCHAIN: local
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache: true
+      - name: build
+        run: go build ./...
+      - name: vet
+        run: go vet ./...
+      - name: install pdfcpu (PDF validator, used by tests)
+        run: go install github.com/pdfcpu/pdfcpu/cmd/pdfcpu@latest
+      - name: test
+        run: |
+          export PATH="$PATH:$(go env GOPATH)/bin"
+          go test ./... -count=1

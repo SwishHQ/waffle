@@ -1,0 +1,17 @@
+# Example output written to the working directory
+/hello.pdf
+/invoice.pdf
+/react.pdf
+/react-tree.json
+examples/**/*.pdf
+
+# Go build/test artifacts
+/dist/
+*.out
+*.test
+
+# Editor/OS cruft
+.DS_Store
+
+# Runtime locks
+.claude/*.lock
