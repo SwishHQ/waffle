@@ -1,0 +1,10 @@
+{
+  "hooks": {
+    "WorktreeCreate": [
+      { "type": "command", "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/create-worktree.sh\"" }
+    ],
+    "WorktreeRemove": [
+      { "type": "command", "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/cleanup-worktree.sh\"" }
+    ]
+  }
+}
