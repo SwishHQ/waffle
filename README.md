@@ -82,6 +82,7 @@ The engine is feature-complete for the core react-pdf surface, and React runs in
 - **Links** — block-level `<Link src>` renders a clickable URI annotation.
 - **Rounded corners** — `borderRadius` (per-corner + `%`) on backgrounds, uniform borders, and image clipping (circular avatars via `borderRadius: '50%'`).
 - **Opacity** — `opacity` via ExtGState, applied to a box and its subtree, with CSS-style nested multiplication.
+- **Transforms** — `transform` (`rotate`/`scale`/`translate`/`skew`/`matrix`) about `transform-origin` (default center), applied to a box and its subtree.
 - **Encryption** — `<Document userPassword ownerPassword permissions>` produces a password-protected PDF (standard security handler, RC4-128).
 - **JS engine** (`internal/jsruntime`) — esbuild transpiles JSX/TSX and bundles embedded React + `@feast/react`; goja executes it to produce a `feast-tree/v1` document. Real React runs: components, props, `.map`, **hooks** (`useState`/`useMemo`/`useContext`/`useRef`/`useReducer`/…), **context** (`<Ctx.Provider>` + `useContext`), and `React.memo`/`forwardRef`.
 
