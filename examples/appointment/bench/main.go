@@ -1,14 +1,12 @@
-// Command bench is a waffle load test shaped like a Gotenberg docx->PDF
-// conversion benchmark, so an in-process JSX->PDF render can be compared against
-// a LibreOffice-in-a-sidecar pipeline apples-to-apples. It renders a multi-page
-// offer/appointment letter with a full-page letterhead, embedded fonts, inline
-// runs and a compensation table, and reports the same numbers: latency
+// Command bench load-tests the in-process JSX->PDF render. It renders a
+// multi-page offer/appointment letter with a full-page letterhead, embedded
+// fonts, inline runs and a compensation table, and reports the latency
 // distribution, throughput, failures, and peak RSS.
 //
-// The template is compiled once (like Gotenberg keeping LibreOffice warm) and
-// then rendered REQUESTS times at CONCURRENCY. Run it inside a container capped
-// to the same profile Gotenberg is typically sized under (0.25 / 0.5 vCPU,
-// capped memory, swap disabled) via bench.sh, which captures peak memory.
+// The template is compiled once (the warm path) and then rendered REQUESTS
+// times at CONCURRENCY. Run it inside a resource-capped container (fractional
+// vCPU, capped memory, swap disabled) via bench.sh, which captures peak memory
+// — the numbers that size a production deployment.
 //
 //	REQUESTS=30 CONCURRENCY=1 ./waffle-bench      # reads ./appointment.jsx + ./assets
 package main
@@ -203,8 +201,9 @@ func procPeakRSSKiB() int {
 	return 0
 }
 
-// cgroupPeakBytes reads the cgroup-v2 memory.peak, the container's peak memory —
-// the same figure a Gotenberg sizing harness captures. Returns 0 if unavailable.
+// cgroupPeakBytes reads the cgroup-v2 memory.peak — the container's peak
+// memory, the figure that sizes a deployment's memory cap. Returns 0 if
+// unavailable.
 func cgroupPeakBytes() int64 {
 	b, err := os.ReadFile("/sys/fs/cgroup/memory.peak")
 	if err != nil {

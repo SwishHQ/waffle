@@ -13,7 +13,7 @@
 //
 // Both paths feed the same Go pipeline: parse the contract, build and validate
 // the element tree, lay it out (flexbox + text + pagination), and paint the PDF.
-// See PLAN.md for the full architecture and phase plan.
+// See the README's Architecture section and docs/architecture.excalidraw.
 package waffle
 
 // Version is the current waffle library version.

@@ -167,10 +167,6 @@ bash examples/appointment/bench/bench.sh                                        
 cd examples/appointment && CPUPROFILE=/tmp/waffle.prof REQUESTS=30 go run ./bench
 ```
 
-Comparative benchmarks against other PDF pipelines live in
-[`examples/appointment/bench/`](examples/appointment/bench/), deliberately kept
-out of this README.
-
 ## Examples
 
 | Example | Shows |

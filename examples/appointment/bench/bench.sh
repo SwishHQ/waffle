@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
-# Benchmark waffle's in-process JSX->PDF render under the SAME container resource
-# profiles a Gotenberg docx->PDF sidecar is typically sized under: 0.25 / 0.5
-# vCPU, capped memory, swap disabled. It cross-compiles a static linux binary,
-# stages it with the appointment letter + assets, and runs it in a minimal
-# container for each profile — reporting the same latency distribution,
-# throughput and peak memory so the two engines can be compared apples-to-apples.
+# Benchmark waffle's in-process JSX->PDF render under tight container resource
+# caps (fractional vCPU, capped memory, swap disabled) — the numbers that size a
+# production deployment. It cross-compiles a static linux binary, stages it with
+# the appointment letter + assets, and runs it in a minimal container for each
+# profile, reporting the latency distribution, throughput, and peak memory.
 #
 #   bash examples/appointment/bench/bench.sh
 #   REQUESTS=50 bash examples/appointment/bench/bench.sh
@@ -38,8 +37,8 @@ docker image inspect "$IMAGE" >/dev/null 2>&1 || docker pull "$IMAGE" >/dev/null
 
 # name | cpus | memory | concurrency  (swap disabled: --memory-swap == --memory)
 PROFILES=(
-  "gotenberg-floor|0.25|384m|1"
-  "higher-cpu|0.5|512m|1"
+  "quarter-cpu|0.25|384m|1"
+  "half-cpu|0.5|512m|1"
 )
 
 for p in "${PROFILES[@]}"; do
@@ -59,7 +58,5 @@ for p in "${PROFILES[@]}"; do
 done
 
 echo
-echo "For reference, a warm Gotenberg (gotenberg/gotenberg:8, LibreOffice) at"
-echo "0.25 vCPU converting the same class of document measures roughly p50 ~2s /"
-echo "p95 ~7s, peak RSS ~200-260 MiB, throughput ~1/latency (conversions"
-echo "serialize on one LibreOffice process). See bench/RESULTS.md."
+echo "Decision guide: fail>0 or OOMKilled=true means the memory cap is too"
+echo "tight; CPU only moves latency. Engine-level numbers: go test -bench ."

@@ -2,7 +2,7 @@
 // forms for the layout engine: dimensioned values and their unit conversions,
 // colors, font weights, and style flattening. Values arrive from the contract as
 // numbers (json.Number) or CSS-ish strings and are interpreted here, keeping the
-// engine the single source of truth for style semantics (PLAN.md §6.3).
+// engine the single source of truth for style semantics.
 package stylesheet
 
 import (
