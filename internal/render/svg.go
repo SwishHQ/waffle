@@ -219,8 +219,34 @@ func emitAndPaint(c *pdf.Content, p svgparse.Path, n *tree.Node, grads map[strin
 			}
 		}
 	}
+	// Scope solid-shape painting so per-shape stroke styling (dash/cap/join) does
+	// not leak into sibling shapes.
+	c.Save()
 	emitPath(c, p)
 	paintSVGShape(c, n)
+	c.Restore()
+}
+
+// applySVGStrokeStyle sets stroke dash pattern, line cap, and line join from a
+// shape's SVG attributes. Defaults (butt cap, miter join, solid) are left as-is.
+func applySVGStrokeStyle(c *pdf.Content, n *tree.Node) {
+	if da := svgAttr(n, "strokeDasharray", ""); da != "" && da != "none" {
+		if dashes := svgTransformArgs(da); len(dashes) > 0 {
+			c.Dash(0, dashes...)
+		}
+	}
+	switch svgAttr(n, "strokeLinecap", "") {
+	case "round":
+		c.LineCap(1)
+	case "square":
+		c.LineCap(2)
+	}
+	switch svgAttr(n, "strokeLinejoin", "") {
+	case "round":
+		c.LineJoin(1)
+	case "bevel":
+		c.LineJoin(2)
+	}
 }
 
 // emitPath writes a path's segments as content operators.
@@ -261,6 +287,7 @@ func paintGradientShape(c *pdf.Content, p svgparse.Path, n *tree.Node, sh *pdf.S
 				sw = 1
 			}
 			c.LineWidth(sw)
+			applySVGStrokeStyle(c, n)
 			emitPath(c, p)
 			c.Stroke()
 		}
@@ -291,6 +318,7 @@ func paintSVGShape(c *pdf.Content, n *tree.Node) {
 			sw = 1
 		}
 		c.LineWidth(sw)
+		applySVGStrokeStyle(c, n)
 	}
 
 	evenOdd := svgAttr(n, "fillRule", "") == "evenodd"
