@@ -3,19 +3,19 @@ package layout
 import (
 	"encoding/base64"
 	"fmt"
-	"strings"
 
 	"github.com/swish/feast/internal/contract"
+	"github.com/swish/feast/internal/fetch"
 	"github.com/swish/feast/internal/fontstore"
 	"github.com/swish/feast/internal/stylesheet"
 )
 
 // buildFontStore registers all Font.register faces into a fontstore.Store for
-// custom-font measurement and embedding. Only inline sources (base64 data: URIs
-// and $inline bytes) are decoded here; URL/file font fetching is a later step.
-// Faces that can't be decoded/parsed are skipped with a warning so a bad font
-// degrades gracefully to the standard-font fallback. Returns nil when no fonts
-// are registered.
+// custom-font measurement and embedding. Sources may be data: URIs, $inline
+// bytes, http(s) URLs, or local file paths. Faces that can't be
+// fetched/decoded/parsed are skipped with a warning so a bad font degrades
+// gracefully to the standard-font fallback. Returns nil when no fonts are
+// registered.
 func buildFontStore(fonts []contract.FontRegistration) (*fontstore.Store, []string) {
 	if len(fonts) == 0 {
 		return nil, nil
@@ -62,31 +62,18 @@ func buildFontStore(fonts []contract.FontRegistration) (*fontstore.Store, []stri
 	return store, warns
 }
 
-// decodeFontSrc extracts font program bytes from a Font.register src: a base64
-// data: URI or inline bytes ($inline). Returns (nil, nil) for URL/file sources
-// (not fetched yet) so the caller falls back to a standard font.
+// decodeFontSrc extracts font program bytes from a Font.register src: a data:
+// URI, http(s) URL, or file path (string), or inline bytes ($inline). Returns
+// (nil, nil) for an empty/unusable source so the caller skips the face.
 func decodeFontSrc(src any) ([]byte, error) {
 	switch v := src.(type) {
 	case string:
-		if strings.HasPrefix(v, "data:") {
-			return decodeDataURIBytes(v)
+		if v == "" {
+			return nil, nil
 		}
-		return nil, nil
+		return fetch.Bytes(v)
 	case contract.InlineAsset:
 		return base64.StdEncoding.DecodeString(v.Base64)
 	}
 	return nil, nil
-}
-
-// decodeDataURIBytes decodes the payload of a data: URI (base64 or raw).
-func decodeDataURIBytes(uri string) ([]byte, error) {
-	comma := strings.IndexByte(uri, ',')
-	if comma < 0 {
-		return nil, fmt.Errorf("malformed data URI")
-	}
-	meta, payload := uri[:comma], uri[comma+1:]
-	if strings.Contains(meta, ";base64") {
-		return base64.StdEncoding.DecodeString(payload)
-	}
-	return []byte(payload), nil
 }
