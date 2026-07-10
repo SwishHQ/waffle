@@ -76,8 +76,12 @@ func paintBox(c *pdf.Content, box *layout.Box, pageH float64, ctx stylesheet.Con
 	paintBorders(c, box, pageH, ctx)
 	paintText(c, box, pageH, ctx)
 	paintLink(c, box, pageH)
+	clipped := setupOverflowClip(c, box, pageH, ctx)
 	for _, child := range box.Children {
 		paintBox(c, child, pageH, ctx, op)
+	}
+	if clipped {
+		c.Restore()
 	}
 	if fade {
 		c.Restore()
@@ -85,6 +89,24 @@ func paintBox(c *pdf.Content, box *layout.Box, pageH float64, ctx stylesheet.Con
 	if transformed {
 		c.Restore()
 	}
+}
+
+// setupOverflowClip clips a box's children to its frame when overflow:hidden,
+// honoring border-radius. Reports whether it wrapped (so paintBox can Restore).
+func setupOverflowClip(c *pdf.Content, box *layout.Box, pageH float64, ctx stylesheet.Context) bool {
+	if str(box.Style["overflow"]) != "hidden" {
+		return false
+	}
+	f := box.Frame
+	x, y := f.X, pageH-(f.Y+f.H)
+	c.Save()
+	if tl, tr, br, bl, any := cornerRadii(box, ctx); any {
+		roundedRectPath(c, x, y, f.W, f.H, tl, tr, br, bl)
+	} else {
+		c.Rect(x, y, f.W, f.H)
+	}
+	c.Clip().EndPath()
+	return true
 }
 
 // setupTransform applies a CSS `transform` as a CTM around the box's whole
