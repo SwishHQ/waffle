@@ -43,11 +43,11 @@ timeout and return 503s.
 
 ### Uncapped (native, 12 cores)
 
-waffle: **p50 15 ms**, 66.7 renders/s on one goroutine, **147 renders/s at
-concurrency 8**, ~11 MiB Go heap in use. Gotenberg has no equivalent mode: one
-instance drives one LibreOffice process, so conversions serialize regardless of
-cores — throughput ≈ 1/latency, and scaling means more replicas, each carrying
-its own sidecar.
+waffle: **p50 ~24 ms** steady-state (best observed run 15 ms), ~42 renders/s on
+one goroutine, **~100–110 renders/s across the cores**, ~11 MiB Go heap in use.
+Gotenberg has no equivalent mode: one instance drives one LibreOffice process,
+so conversions serialize regardless of cores — throughput ≈ 1/latency, and
+scaling means more replicas, each carrying its own sidecar.
 
 ### One-time costs
 
@@ -96,9 +96,10 @@ programs — while JS execution and layout were noise. waffle now caches these o
 the `Template`: images are decoded and their pixels compressed once, fonts
 fetched and parsed once, and each face's compressed `FontFile2` stream is built
 once and shared across every render. That took the same-document native p50
-from 165 ms to 15 ms (11×) and produced the numbers above. Consequence: file
-and URL assets are read once per `Template`; a changed file on disk is picked
-up by loading a new Template, not by re-rendering.
+from 165 ms to ~24 ms steady-state (≈7×; the best observed run measured 15 ms)
+and produced the numbers above. Consequence: file and URL assets are read once
+per `Template`; a changed file on disk is picked up by loading a new Template,
+not by re-rendering.
 
 ## Reproduce
 
