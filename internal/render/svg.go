@@ -13,6 +13,7 @@ import (
 	"github.com/swish/feast/internal/pdf/afm"
 	"github.com/swish/feast/internal/stylesheet"
 	"github.com/swish/feast/internal/svgparse"
+	"github.com/swish/feast/internal/transform"
 	"github.com/swish/feast/internal/tree"
 )
 
@@ -49,6 +50,15 @@ func paintSVG(c *pdf.Content, box *layout.Box, pageH float64) {
 }
 
 func drawSVGNode(c *pdf.Content, n *tree.Node, grads map[string]*tree.Node) {
+	// A transform attribute establishes a new coordinate system for this node and
+	// its descendants; it composes under the SVG viewBox CTM already in effect.
+	if tf := svgAttr(n, "transform", ""); tf != "" {
+		if m, ok := parseSVGTransform(tf); ok {
+			c.Save()
+			c.Transform(m.A, m.B, m.C, m.D, m.E, m.F)
+			defer c.Restore()
+		}
+	}
 	switch n.Type {
 	case contract.TypeG:
 		for _, ch := range n.Children {
@@ -299,6 +309,75 @@ func numP(n *tree.Node, key string) float64 {
 func svgAttr(n *tree.Node, key, def string) string {
 	if s, ok := n.Props[key].(string); ok && s != "" {
 		return s
+	}
+	return def
+}
+
+// parseSVGTransform parses an SVG transform attribute (a whitespace/comma list of
+// translate/scale/rotate/skewX/skewY/matrix functions with unitless numbers) into
+// a single matrix. Reports ok=false when nothing parsed.
+func parseSVGTransform(s string) (transform.Matrix, bool) {
+	m := transform.Identity()
+	any := false
+	for {
+		s = strings.TrimSpace(s)
+		open := strings.IndexByte(s, '(')
+		if open < 0 {
+			break
+		}
+		fn := strings.TrimSpace(s[:open])
+		closeIdx := strings.IndexByte(s, ')')
+		if closeIdx < 0 || closeIdx < open {
+			break
+		}
+		args := svgTransformArgs(s[open+1 : closeIdx])
+		s = s[closeIdx+1:]
+
+		var t transform.Matrix
+		switch fn {
+		case "translate":
+			t = transform.Translate(svgArg(args, 0, 0), svgArg(args, 1, 0))
+		case "scale":
+			sx := svgArg(args, 0, 1)
+			t = transform.Scale(sx, svgArg(args, 1, sx))
+		case "rotate":
+			t = transform.Rotate(svgArg(args, 0, 0))
+			if len(args) >= 3 {
+				t = t.AboutOrigin(args[1], args[2])
+			}
+		case "skewX":
+			t = transform.Skew(svgArg(args, 0, 0), 0)
+		case "skewY":
+			t = transform.Skew(0, svgArg(args, 0, 0))
+		case "matrix":
+			if len(args) != 6 {
+				continue
+			}
+			t = transform.Matrix{A: args[0], B: args[1], C: args[2], D: args[3], E: args[4], F: args[5]}
+		default:
+			continue
+		}
+		m = m.Mul(t)
+		any = true
+	}
+	return m, any
+}
+
+// svgTransformArgs parses a function's numeric arguments (space/comma separated).
+func svgTransformArgs(s string) []float64 {
+	fields := strings.FieldsFunc(s, func(r rune) bool { return r == ' ' || r == ',' || r == '\t' || r == '\n' })
+	out := make([]float64, 0, len(fields))
+	for _, f := range fields {
+		if v, err := strconv.ParseFloat(f, 64); err == nil {
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
+func svgArg(args []float64, i int, def float64) float64 {
+	if i < len(args) {
+		return args[i]
 	}
 	return def
 }
