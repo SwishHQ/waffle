@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/swish/waffle/internal/contract"
+	"github.com/SwishHQ/waffle/internal/contract"
 )
 
 // mk builds a node of the given type with children, wiring Parent pointers.

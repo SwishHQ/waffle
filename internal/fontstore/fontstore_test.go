@@ -6,7 +6,7 @@ import (
 
 	"golang.org/x/image/font/gofont/goregular"
 
-	"github.com/swish/waffle/internal/pdf/afm"
+	"github.com/SwishHQ/waffle/internal/pdf/afm"
 )
 
 func TestRegisterAndMeasure(t *testing.T) {

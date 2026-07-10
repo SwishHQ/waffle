@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/swish/waffle"
+	"github.com/SwishHQ/waffle"
 )
 
 // benchTemplate compiles the appointment letter and warms its asset cache

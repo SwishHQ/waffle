@@ -11,9 +11,9 @@ import (
 
 	"golang.org/x/image/font/gofont/goregular"
 
-	"github.com/swish/waffle/internal/contract"
-	"github.com/swish/waffle/internal/pdf"
-	"github.com/swish/waffle/internal/tree"
+	"github.com/SwishHQ/waffle/internal/contract"
+	"github.com/SwishHQ/waffle/internal/pdf"
+	"github.com/SwishHQ/waffle/internal/tree"
 )
 
 // layoutWith parses, builds, and lays out a document with the given cache —

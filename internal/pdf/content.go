@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/swish/waffle/internal/pdf/afm"
+	"github.com/SwishHQ/waffle/internal/pdf/afm"
 )
 
 // Content builds a page content stream from PDF drawing operators. Methods are

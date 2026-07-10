@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/swish/waffle/internal/contract"
+	"github.com/SwishHQ/waffle/internal/contract"
 )
 
 // svgOnly are element types that are only meaningful inside an <Svg> subtree.

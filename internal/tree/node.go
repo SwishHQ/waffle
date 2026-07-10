@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/swish/waffle/internal/contract"
+	"github.com/SwishHQ/waffle/internal/contract"
 )
 
 // Node is one element of the internal tree.

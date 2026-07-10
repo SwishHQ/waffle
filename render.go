@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"io"
 
-	"github.com/swish/waffle/internal/contract"
-	"github.com/swish/waffle/internal/layout"
-	"github.com/swish/waffle/internal/pdf"
-	"github.com/swish/waffle/internal/render"
-	"github.com/swish/waffle/internal/tree"
+	"github.com/SwishHQ/waffle/internal/contract"
+	"github.com/SwishHQ/waffle/internal/layout"
+	"github.com/SwishHQ/waffle/internal/pdf"
+	"github.com/SwishHQ/waffle/internal/render"
+	"github.com/SwishHQ/waffle/internal/tree"
 )
 
 // RenderInfo reports the outcome of a render.

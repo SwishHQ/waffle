@@ -1,6 +1,6 @@
 package layout
 
-import "github.com/swish/waffle/internal/tree"
+import "github.com/SwishHQ/waffle/internal/tree"
 
 // paginate splits a laid-out page into output pages, filling each page from the
 // flow and splitting a straddling child at a line (Text) or child (View)

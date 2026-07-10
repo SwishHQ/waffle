@@ -24,7 +24,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/swish/waffle"
+	"github.com/SwishHQ/waffle"
 )
 
 func main() {

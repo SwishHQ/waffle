@@ -3,8 +3,8 @@ package layout
 import (
 	"testing"
 
-	"github.com/swish/waffle/internal/pdf/afm"
-	"github.com/swish/waffle/internal/stylesheet"
+	"github.com/SwishHQ/waffle/internal/pdf/afm"
+	"github.com/SwishHQ/waffle/internal/stylesheet"
 )
 
 // letterSpacing widens measured text by spacing × character count, and the wider

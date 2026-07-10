@@ -15,13 +15,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/swish/waffle/internal/contract"
-	"github.com/swish/waffle/internal/layout"
-	"github.com/swish/waffle/internal/pdf"
-	"github.com/swish/waffle/internal/pdf/afm"
-	"github.com/swish/waffle/internal/stylesheet"
-	"github.com/swish/waffle/internal/transform"
-	"github.com/swish/waffle/internal/tree"
+	"github.com/SwishHQ/waffle/internal/contract"
+	"github.com/SwishHQ/waffle/internal/layout"
+	"github.com/SwishHQ/waffle/internal/pdf"
+	"github.com/SwishHQ/waffle/internal/pdf/afm"
+	"github.com/SwishHQ/waffle/internal/stylesheet"
+	"github.com/SwishHQ/waffle/internal/transform"
+	"github.com/SwishHQ/waffle/internal/tree"
 )
 
 // Options configure rendering.

@@ -3,8 +3,8 @@ package layout
 import (
 	"encoding/json"
 
-	"github.com/swish/waffle/internal/flexbox"
-	"github.com/swish/waffle/internal/stylesheet"
+	"github.com/SwishHQ/waffle/internal/flexbox"
+	"github.com/SwishHQ/waffle/internal/stylesheet"
 )
 
 // toFlexStyle maps a resolved+inherited style map to flexbox layout inputs,

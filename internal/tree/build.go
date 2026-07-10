@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/swish/waffle/internal/contract"
+	"github.com/SwishHQ/waffle/internal/contract"
 )
 
 // Tree is a built, validated document tree plus the document-level assets the

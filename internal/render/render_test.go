@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/swish/waffle/internal/contract"
-	"github.com/swish/waffle/internal/layout"
-	"github.com/swish/waffle/internal/tree"
+	"github.com/SwishHQ/waffle/internal/contract"
+	"github.com/SwishHQ/waffle/internal/layout"
+	"github.com/SwishHQ/waffle/internal/tree"
 )
 
 func layoutFromJSON(t *testing.T, doc string) *layout.Result {

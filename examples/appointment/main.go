@@ -19,7 +19,7 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/swish/waffle"
+	"github.com/SwishHQ/waffle"
 )
 
 //go:embed appointment.jsx

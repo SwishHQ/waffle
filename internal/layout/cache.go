@@ -7,10 +7,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/swish/waffle/internal/contract"
-	"github.com/swish/waffle/internal/fontstore"
-	"github.com/swish/waffle/internal/pdf"
-	"github.com/swish/waffle/internal/tree"
+	"github.com/SwishHQ/waffle/internal/contract"
+	"github.com/SwishHQ/waffle/internal/fontstore"
+	"github.com/SwishHQ/waffle/internal/pdf"
+	"github.com/SwishHQ/waffle/internal/tree"
 )
 
 // Cache memoizes render-invariant assets across renders of the same document:

@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"math"
 
-	"github.com/swish/waffle/internal/layout"
-	"github.com/swish/waffle/internal/pdf"
-	"github.com/swish/waffle/internal/stylesheet"
-	"github.com/swish/waffle/internal/svgparse"
+	"github.com/SwishHQ/waffle/internal/layout"
+	"github.com/SwishHQ/waffle/internal/pdf"
+	"github.com/SwishHQ/waffle/internal/stylesheet"
+	"github.com/SwishHQ/waffle/internal/svgparse"
 )
 
 // paintCanvas replays a Canvas node's recorded painter ops. Canvas coordinates

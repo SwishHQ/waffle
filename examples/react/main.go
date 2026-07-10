@@ -12,7 +12,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/swish/waffle"
+	"github.com/SwishHQ/waffle"
 )
 
 //go:embed invoice.jsx

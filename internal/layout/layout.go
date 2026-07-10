@@ -6,12 +6,12 @@
 package layout
 
 import (
-	"github.com/swish/waffle/internal/contract"
-	"github.com/swish/waffle/internal/flexbox"
-	"github.com/swish/waffle/internal/fontstore"
-	"github.com/swish/waffle/internal/pdf"
-	"github.com/swish/waffle/internal/stylesheet"
-	"github.com/swish/waffle/internal/tree"
+	"github.com/SwishHQ/waffle/internal/contract"
+	"github.com/SwishHQ/waffle/internal/flexbox"
+	"github.com/SwishHQ/waffle/internal/fontstore"
+	"github.com/SwishHQ/waffle/internal/pdf"
+	"github.com/SwishHQ/waffle/internal/stylesheet"
+	"github.com/SwishHQ/waffle/internal/tree"
 )
 
 // Rect is an absolute box in page coordinates (points), border-box.

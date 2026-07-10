@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/swish/waffle/internal/pdf"
+	"github.com/SwishHQ/waffle/internal/pdf"
 )
 
 // A4 in points (72 dpi).

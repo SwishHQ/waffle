@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/swish/waffle"
+	"github.com/SwishHQ/waffle"
 )
 
 const doc = `{

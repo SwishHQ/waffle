@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/swish/waffle/internal/contract"
-	"github.com/swish/waffle/internal/fontstore"
+	"github.com/SwishHQ/waffle/internal/contract"
+	"github.com/SwishHQ/waffle/internal/fontstore"
 	"golang.org/x/image/font/gofont/goregular"
 )
 

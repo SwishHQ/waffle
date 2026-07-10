@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/swish/waffle/internal/contract"
-	"github.com/swish/waffle/internal/tree"
+	"github.com/SwishHQ/waffle/internal/contract"
+	"github.com/SwishHQ/waffle/internal/tree"
 )
 
 // stubEval returns a deterministic "P{page}/{total}" string, standing in for the

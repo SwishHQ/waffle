@@ -14,8 +14,8 @@ import (
 
 	"github.com/go-text/typesetting/font"
 
-	"github.com/swish/waffle/internal/pdf"
-	"github.com/swish/waffle/internal/pdf/afm"
+	"github.com/SwishHQ/waffle/internal/pdf"
+	"github.com/SwishHQ/waffle/internal/pdf/afm"
 )
 
 // Style is a font style.

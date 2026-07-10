@@ -7,9 +7,9 @@ import (
 	"io"
 	"strings"
 
-	"github.com/swish/waffle/internal/contract"
-	"github.com/swish/waffle/internal/jsruntime"
-	"github.com/swish/waffle/internal/layout"
+	"github.com/SwishHQ/waffle/internal/contract"
+	"github.com/SwishHQ/waffle/internal/jsruntime"
+	"github.com/SwishHQ/waffle/internal/layout"
 )
 
 // TemplateOptions configures how a React source is compiled into a Template.

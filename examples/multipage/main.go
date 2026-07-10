@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/swish/waffle"
+	"github.com/SwishHQ/waffle"
 )
 
 var palette = []string{"#e63946", "#457b9d", "#2a9d8f", "#e9c46a", "#f4a261", "#8338ec"}

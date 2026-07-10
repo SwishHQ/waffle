@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/swish/waffle"
+	"github.com/SwishHQ/waffle"
 )
 
 // renderAppointment renders the embedded appointment.jsx with sample props and

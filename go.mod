@@ -1,4 +1,4 @@
-module github.com/swish/waffle
+module github.com/SwishHQ/waffle
 
 go 1.24
 

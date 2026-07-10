@@ -11,9 +11,9 @@ import (
 
 	"golang.org/x/image/font/gofont/goregular"
 
-	"github.com/swish/waffle/internal/contract"
-	"github.com/swish/waffle/internal/layout"
-	"github.com/swish/waffle/internal/tree"
+	"github.com/SwishHQ/waffle/internal/contract"
+	"github.com/SwishHQ/waffle/internal/layout"
+	"github.com/SwishHQ/waffle/internal/tree"
 )
 
 // A complete react-pdf-style document authored in JSX: primitive imports, a

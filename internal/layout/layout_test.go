@@ -4,8 +4,8 @@ import (
 	"math"
 	"testing"
 
-	"github.com/swish/waffle/internal/contract"
-	"github.com/swish/waffle/internal/tree"
+	"github.com/SwishHQ/waffle/internal/contract"
+	"github.com/SwishHQ/waffle/internal/tree"
 )
 
 func layoutJSON(t *testing.T, doc string) *Result {
