@@ -141,11 +141,13 @@ func computeU(fileKey, id0 []byte) []byte {
 }
 
 // encryptor rewrites indirect objects at serialization time so that their
-// strings and stream data are encrypted with per-object keys. It uses RC4 by
-// default, or AES-128-CBC (AESV2) when aes is set.
+// strings and stream data are encrypted. It uses RC4 by default, AES-128-CBC
+// (AESV2) when aes is set, or AES-256-CBC (AESV3) when aes+directKey are set —
+// the latter encrypts with the file key directly, without per-object keys.
 type encryptor struct {
-	fileKey []byte
-	aes     bool
+	fileKey   []byte
+	aes       bool
+	directKey bool
 }
 
 // aesSalt is appended to the object-key digest input for AESV2 (PDF 32000-1
@@ -182,7 +184,11 @@ func (e *encryptor) apply(key, data []byte) []byte {
 // stream's data has been encrypted for indirect object (num, gen). The stored
 // object is never mutated, so serialization stays repeatable.
 func (e *encryptor) transform(obj Object, num, gen int) Object {
-	return e.encryptValue(obj, e.objectKey(num, gen))
+	key := e.fileKey
+	if !e.directKey {
+		key = e.objectKey(num, gen) // AESV3 (R6) uses the file key directly
+	}
+	return e.encryptValue(obj, key)
 }
 
 // encryptValue walks an object tree, encrypting LiteralString/HexString values

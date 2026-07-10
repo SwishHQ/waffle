@@ -39,6 +39,9 @@ type Options struct {
 	// EncryptAES selects AES-128 (AESV2, /V 4 /R 4) instead of the default
 	// RC4-128 handler when encryption is enabled. Ignored without a password.
 	EncryptAES bool
+	// EncryptAES256 selects AES-256 (AESV3, /V 5 /R 6) — the strongest handler.
+	// Takes precedence over EncryptAES. Ignored without a password.
+	EncryptAES256 bool
 }
 
 // Document assembles a PDF: metadata, a page tree, and shared font objects.
@@ -240,9 +243,12 @@ func (d *Document) WriteTo(out io.Writer) (int64, error) {
 	d.w.ID = d.deriveID()
 	if d.opts.UserPassword != "" || d.opts.OwnerPassword != "" {
 		// needs d.w.ID; must run after deriveID
-		if d.opts.EncryptAES {
+		switch {
+		case d.opts.EncryptAES256:
+			d.setupAES256()
+		case d.opts.EncryptAES:
 			d.setupAES()
-		} else {
+		default:
 			d.setupEncryption()
 		}
 	}
