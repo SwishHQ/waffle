@@ -596,20 +596,26 @@ func paintText(c *pdf.Content, box *layout.Box, pageH float64, ctx stylesheet.Co
 	}
 	for i, line := range t.Lines {
 		lineW := stringWidth(line)
-		x := x0
+		// The first line starts at the indent, with correspondingly less width.
+		lineStartX, lineCW := x0, contentW
+		if i == 0 && t.TextIndent != 0 {
+			lineStartX += t.TextIndent
+			lineCW -= t.TextIndent
+		}
+		x := lineStartX
 		wordSpace := t.WordSpacing // baseline word spacing; justify adds to it
 		paintedW := lineW
 		switch align {
 		case "right":
-			x = x0 + (contentW - lineW)
+			x = lineStartX + (lineCW - lineW)
 		case "center":
-			x = x0 + (contentW-lineW)/2
+			x = lineStartX + (lineCW-lineW)/2
 		case "justify":
 			// Justify all but the last line by widening inter-word gaps on top of
 			// any baseline wordSpacing (already included in lineW).
-			if gaps := strings.Count(line, " "); i < len(t.Lines)-1 && gaps > 0 && contentW > lineW {
-				wordSpace += (contentW - lineW) / float64(gaps)
-				paintedW = contentW
+			if gaps := strings.Count(line, " "); i < len(t.Lines)-1 && gaps > 0 && lineCW > lineW {
+				wordSpace += (lineCW - lineW) / float64(gaps)
+				paintedW = lineCW
 			}
 		}
 		baseline := pageH - (top + float64(i)*t.LineHeight + t.Ascent)
@@ -672,12 +678,17 @@ func paintRunLines(c *pdf.Content, box *layout.Box, t *layout.TextInfo, pageH fl
 		}
 		last := line[len(line)-1]
 		lineW := last.X + fragWidth(last)
-		lineStart := x0
+		base, cw := x0, contentW
+		if i == 0 && t.TextIndent != 0 {
+			base += t.TextIndent
+			cw -= t.TextIndent
+		}
+		lineStart := base
 		switch align {
 		case "right":
-			lineStart = x0 + (contentW - lineW)
+			lineStart = base + (cw - lineW)
 		case "center":
-			lineStart = x0 + (contentW-lineW)/2
+			lineStart = base + (cw-lineW)/2
 		}
 		baseline := pageH - (top + float64(i)*t.LineHeight + t.Ascent)
 		for _, f := range line {

@@ -56,6 +56,7 @@ type TextInfo struct {
 	Transform     string            // textTransform, re-applied to per-page substituted content
 	LetterSpacing float64           // extra advance per character (points)
 	WordSpacing   float64           // extra advance per space character (points)
+	TextIndent    float64           // first-line indent (points)
 	EmbeddedFont  *pdf.EmbeddedFont // registered custom font to embed; nil for standard fonts
 
 	// RunLines holds per-line styled fragments for Text with inline runs (nested
@@ -252,6 +253,7 @@ func toBox(ln *layoutNode, absX, absY float64) *Box {
 			Transform:     t.transform,
 			LetterSpacing: t.letterSpacing,
 			WordSpacing:   t.wordSpacing,
+			TextIndent:    t.textIndent,
 			EmbeddedFont:  t.embedded,
 			RunLines:      t.runLines,
 		}

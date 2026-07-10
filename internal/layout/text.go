@@ -39,6 +39,7 @@ type textResolve struct {
 	wordSpacing   float64 // extra advance per space character (points)
 	maxLines      int     // cap on wrapped lines (0 = unlimited)
 	ellipsis      bool    // textOverflow:ellipsis — trailing … on a truncated last line
+	textIndent    float64 // first-line indent (points)
 
 	runs     []textRun       // inline styled runs; empty for the single-style path
 	runLines [][]RunFragment // wrapped run fragments per line (set by measure)
@@ -78,8 +79,12 @@ func (t *textResolve) measure(availW, availH float64) flexbox.Size {
 		return flexbox.Size{W: 0, H: t.lineHeight}
 	}
 	maxW := 0.0
-	for _, ln := range t.lines {
-		if w := t.stringWidth(ln); w > maxW {
+	for i, ln := range t.lines {
+		w := t.stringWidth(ln)
+		if i == 0 {
+			w += t.textIndent // the first line is pushed right by the indent
+		}
+		if w > maxW {
 			maxW = w
 		}
 	}
@@ -97,11 +102,18 @@ func (t *textResolve) wrap(maxW float64) []string {
 	if maxW <= 0 {
 		return t.truncate([]string{strings.Join(words, " ")}, maxW)
 	}
+	// The first line's usable width is reduced by any textIndent.
+	avail := func(lineIdx int) float64 {
+		if lineIdx == 0 {
+			return maxW - t.textIndent
+		}
+		return maxW
+	}
 	var lines []string
 	cur := words[0]
 	for _, w := range words[1:] {
 		trial := cur + " " + w
-		if t.stringWidth(trial) <= maxW {
+		if t.stringWidth(trial) <= avail(len(lines)) {
 			cur = trial
 		} else {
 			lines = append(lines, cur)
@@ -277,10 +289,14 @@ func (t *textResolve) measureRuns(availW float64) flexbox.Size {
 		if len(cur) == 0 {
 			return
 		}
+		w := x
+		if len(lines) == 0 {
+			w += t.textIndent // the first line is pushed right by the indent
+		}
 		lines = append(lines, cur)
 		lineText = append(lineText, curText.String())
-		if x > maxW {
-			maxW = x
+		if w > maxW {
+			maxW = w
 		}
 		cur = nil
 		curText.Reset()
@@ -292,7 +308,11 @@ func (t *textResolve) measureRuns(availW float64) flexbox.Size {
 			gap = p.style.spaceWidth()
 		}
 		w := p.style.stringWidth(p.text)
-		if len(cur) > 0 && availW > 0 && x+gap+w > availW {
+		lineAvail := availW
+		if len(lines) == 0 {
+			lineAvail -= t.textIndent // first line: less room for the indent
+		}
+		if len(cur) > 0 && availW > 0 && x+gap+w > lineAvail {
 			flushLine()
 			gap = 0 // no leading space at line start
 		}
@@ -369,6 +389,7 @@ func resolveText(node *tree.Node, style map[string]any, media stylesheet.MediaCo
 		wordSpacing:   rs.wordSpacing,
 		maxLines:      propInt(style, "maxLines", 0),
 		ellipsis:      str(style["textOverflow"]) == "ellipsis",
+		textIndent:    spacingOf(style, "textIndent", ctx),
 	}
 
 	// Inline runs: a Text containing nested styled elements (<Text>/<Link>/<Tspan>)
