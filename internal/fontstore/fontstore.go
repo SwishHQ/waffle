@@ -94,7 +94,12 @@ func (s *Store) Register(family string, specs ...FaceSpec) error {
 	}
 	faces := make([]*Face, 0, len(specs))
 	for i, spec := range specs {
-		parsed, err := font.ParseTTF(bytes.NewReader(spec.Data))
+		// WOFF faces are decoded to raw SFNT for both parsing and PDF embedding.
+		sfnt, err := sfntBytes(spec.Data)
+		if err != nil {
+			return fmt.Errorf("fontstore: decoding %q face %d: %w", family, i, err)
+		}
+		parsed, err := font.ParseTTF(bytes.NewReader(sfnt))
 		if err != nil {
 			return fmt.Errorf("fontstore: parsing %q face %d: %w", family, i, err)
 		}
@@ -106,7 +111,7 @@ func (s *Store) Register(family string, specs ...FaceSpec) error {
 			Family: family,
 			Weight: weight,
 			Style:  spec.Style,
-			data:   spec.Data,
+			data:   sfnt,
 			parsed: parsed,
 			upem:   float64(parsed.Upem()),
 		})
