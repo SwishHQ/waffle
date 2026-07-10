@@ -76,10 +76,10 @@ The engine is feature-complete for the core react-pdf surface, and React runs in
 
 - **PDF writer** (`internal/pdf`) — object model, deterministic xref/trailer, FlateDecode streams, content-stream operator builder, 14 standard Type1 fonts with Adobe Core AFM metrics, image XObjects with SMask.
 - **Layout** — flexbox engine (grow/shrink/justify/align, percentages, absolute/fixed positioning, aspect-ratio, `flexWrap` + `alignContent`, min/max width/height), react-pdf-shaped stylesheet (units, colors, shorthands, media queries, inheritance).
-- **Text** — measurement, greedy wrapping, text-align incl. justify, line-height, `letterSpacing`/`wordSpacing`, `textTransform` (uppercase/lowercase/capitalize), `textDecoration` (underline/line-through), `maxLines` + `textOverflow: ellipsis`; the 14 standard fonts **plus custom fonts** (`Font.register` a TTF via a **data URI, http(s) URL, or file path** → embedded via `FontFile2`, measured with real glyph advances).
+- **Text** — measurement, greedy wrapping, text-align incl. justify, line-height, `letterSpacing`/`wordSpacing`, `textTransform` (uppercase/lowercase/capitalize), `textDecoration` (underline/line-through), `maxLines` + `textOverflow: ellipsis`, and **inline styled runs** (nested `<Text>`/`<Link>` with their own font/size/color/decoration share lines); the 14 standard fonts **plus custom fonts** (`Font.register` a TTF via a **data URI, http(s) URL, or file path** → embedded via `FontFile2`, measured with real glyph advances).
 - **Pagination** — block + mid-element splitting, forced breaks, `minPresenceAhead`, orphans/widows, fixed headers/footers, `{pageNumber}`/`{totalPages}` templates.
 - **Graphics** — JPEG/PNG decode from data URI, **http(s) URL, or file path**; image `objectFit` (fill/contain/cover/none/scale-down) with `objectPosition`; SVG (paths + shapes + **linear/radial gradient fills** + **`<Text>`/`<Tspan>`**); Canvas replay.
-- **Links & bookmarks** — block-level `<Link src>` renders a clickable URI annotation; a `bookmark` prop builds a nested PDF **outline** (document navigation tree) with XYZ destinations.
+- **Links, bookmarks & notes** — block-level `<Link src>` renders a clickable URI annotation; a `bookmark` prop builds a nested PDF **outline** (document navigation tree) with XYZ destinations; `<Note>` anchors a sticky-note text annotation.
 - **Rounded corners & border styles** — `borderRadius` (per-corner + `%`) on backgrounds, uniform borders, and image clipping (circular avatars via `borderRadius: '50%'`); `borderStyle` solid/**dashed**/**dotted**.
 - **Opacity & stacking** — `opacity` via ExtGState (nested multiplication) and `zIndex` paint ordering among siblings, applied to a box and its subtree.
 - **Transforms** — `transform` (`rotate`/`scale`/`translate`/`skew`/`matrix`) about `transform-origin` (default center), applied to a box and its subtree.
@@ -92,7 +92,7 @@ A document is rendered as a **pure function of props** in one synchronous pass: 
 
 Canvas `paint={fn}` works too: `<Canvas paint={(painter, w, h) => painter.rect(0,0,w,h).fill('#f00')} />` runs the react-pdf painter API on the VM and replays into the PDF.
 
-Next: inline text runs (mixed styles within one `<Text>`), forms (AcroForm), SVG `transform`/`clipPath`, and AES encryption. Tracked in [PLAN.md](PLAN.md).
+Next: forms (AcroForm — `<TextInput>`/`<Checkbox>`/`<Select>`), SVG `transform`/`clipPath` attributes, and AES encryption. Tracked in [PLAN.md](PLAN.md).
 
 ## Develop
 
