@@ -78,7 +78,7 @@ The engine is feature-complete for the core react-pdf surface, and React runs in
 - **Layout** — flexbox engine (grow/shrink/justify/align, percentages, absolute/fixed positioning, aspect-ratio, `flexWrap` + `alignContent`, min/max width/height), react-pdf-shaped stylesheet (units, colors, shorthands, media queries, inheritance).
 - **Text** — measurement, greedy wrapping, text-align incl. justify, line-height; the 14 standard fonts **plus custom fonts** (`Font.register` a TTF as a data URI → embedded via `FontFile2`, measured with real glyph advances).
 - **Pagination** — block + mid-element splitting, forced breaks, `minPresenceAhead`, orphans/widows, fixed headers/footers, `{pageNumber}`/`{totalPages}` templates.
-- **Graphics** — JPEG/PNG decode from data URI, **http(s) URL, or file path**; image `objectFit` (fill/contain/cover/none/scale-down, centered + clipped); SVG (paths + shapes); Canvas replay.
+- **Graphics** — JPEG/PNG decode from data URI, **http(s) URL, or file path**; image `objectFit` (fill/contain/cover/none/scale-down, centered + clipped); SVG (paths + shapes + **linear/radial gradient fills**); Canvas replay.
 - **Links** — block-level `<Link src>` renders a clickable URI annotation.
 - **Rounded corners** — `borderRadius` (per-corner + `%`) on backgrounds, uniform borders, and image clipping (circular avatars via `borderRadius: '50%'`).
 - **Opacity** — `opacity` via ExtGState, applied to a box and its subtree, with CSS-style nested multiplication.
