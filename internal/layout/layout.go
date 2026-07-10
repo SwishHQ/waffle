@@ -53,6 +53,7 @@ type TextInfo struct {
 	Widows       int
 	Template     string            // string render-prop template (page numbers); "" if none
 	CallbackID   string            // function render-prop callback id ($cb); "" if none
+	Transform    string            // textTransform, re-applied to per-page substituted content
 	EmbeddedFont *pdf.EmbeddedFont // registered custom font to embed; nil for standard fonts
 }
 
@@ -225,6 +226,7 @@ func toBox(ln *layoutNode, absX, absY float64) *Box {
 			Widows:       t.widows,
 			Template:     t.template,
 			CallbackID:   t.callbackID,
+			Transform:    t.transform,
 			EmbeddedFont: t.embedded,
 		}
 	}

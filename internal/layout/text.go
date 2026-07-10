@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/swish/feast/internal/contract"
 	"github.com/swish/feast/internal/flexbox"
@@ -32,6 +33,7 @@ type textResolve struct {
 	widows     int
 	template   string // string render-prop template, substituted per page (page numbers)
 	callbackID string // function render-prop callback id ($cb), evaluated per page
+	transform  string // textTransform, re-applied to per-page substituted content
 }
 
 // measure is the flexbox measure function for a Text leaf. It greedily wraps the
@@ -102,6 +104,8 @@ func resolveText(node *tree.Node, style map[string]any, ctx stylesheet.Context, 
 	if content == "" {
 		return nil
 	}
+	transform := str(style["textTransform"])
+	content = applyTextTransform(content, transform)
 	size := fontSizeOf(style, ctx)
 	tr := &textResolve{
 		content:    content,
@@ -112,6 +116,7 @@ func resolveText(node *tree.Node, style map[string]any, ctx stylesheet.Context, 
 		widows:     propInt(node.Props, "widows", 2),
 		template:   template,
 		callbackID: callbackID,
+		transform:  transform,
 	}
 
 	weight := 400
@@ -175,6 +180,38 @@ func fontFamilyOf(style map[string]any) string {
 	return "Helvetica"
 }
 
+// applyTextTransform applies a CSS textTransform to content before it is measured
+// and wrapped, so line breaking uses the transformed widths.
+func applyTextTransform(s, transform string) string {
+	switch transform {
+	case "uppercase":
+		return strings.ToUpper(s)
+	case "lowercase":
+		return strings.ToLower(s)
+	case "capitalize":
+		return capitalizeWords(s)
+	default:
+		return s
+	}
+}
+
+// capitalizeWords uppercases the first letter of each whitespace-delimited word,
+// leaving the remaining characters unchanged (CSS "capitalize" semantics).
+func capitalizeWords(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	atWordStart := true
+	for _, r := range s {
+		if atWordStart && unicode.IsLetter(r) {
+			b.WriteRune(unicode.ToUpper(r))
+		} else {
+			b.WriteRune(r)
+		}
+		atWordStart = unicode.IsSpace(r)
+	}
+	return b.String()
+}
+
 // renderTemplate substitutes page-number placeholders in a render template.
 func renderTemplate(tmpl string, pageNumber, totalPages int) string {
 	return strings.NewReplacer(
@@ -199,14 +236,15 @@ func substituteTemplates(b *Box, pageNumber, totalPages int, eval Evaluator) {
 	if b.Text != nil {
 		switch {
 		case b.Text.Template != "":
-			content := renderTemplate(b.Text.Template, pageNumber, totalPages)
+			content := applyTextTransform(renderTemplate(b.Text.Template, pageNumber, totalPages), b.Text.Transform)
 			b.Text.Content = content
 			b.Text.Lines = []string{content} // page-number text is a single line
 		case b.Text.CallbackID != "" && eval != nil:
 			pc := PageContext{PageNumber: pageNumber, TotalPages: totalPages, SubPageNumber: pageNumber, SubPageTotalPages: totalPages}
 			if s, err := eval.EvalText(b.Text.CallbackID, pc); err == nil {
-				b.Text.Content = s
-				b.Text.Lines = []string{s}
+				content := applyTextTransform(s, b.Text.Transform)
+				b.Text.Content = content
+				b.Text.Lines = []string{content}
 			}
 		}
 	}
