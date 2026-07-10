@@ -8,8 +8,10 @@
 package render
 
 import (
+	"encoding/json"
 	"io"
 	"math"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -77,7 +79,7 @@ func paintBox(c *pdf.Content, box *layout.Box, pageH float64, ctx stylesheet.Con
 	paintText(c, box, pageH, ctx)
 	paintLink(c, box, pageH)
 	clipped := setupOverflowClip(c, box, pageH, ctx)
-	for _, child := range box.Children {
+	for _, child := range zOrder(box.Children) {
 		paintBox(c, child, pageH, ctx, op)
 	}
 	if clipped {
@@ -89,6 +91,39 @@ func paintBox(c *pdf.Content, box *layout.Box, pageH float64, ctx stylesheet.Con
 	if transformed {
 		c.Restore()
 	}
+}
+
+// zOrder returns the children in ascending z-index paint order (stable; default
+// 0). When no child sets zIndex the original slice is returned unchanged so the
+// common case allocates nothing and preserves document order exactly.
+func zOrder(children []*layout.Box) []*layout.Box {
+	any := false
+	for _, ch := range children {
+		if zIndexOf(ch) != 0 {
+			any = true
+			break
+		}
+	}
+	if !any {
+		return children
+	}
+	out := append([]*layout.Box(nil), children...)
+	sort.SliceStable(out, func(i, j int) bool { return zIndexOf(out[i]) < zIndexOf(out[j]) })
+	return out
+}
+
+func zIndexOf(box *layout.Box) int {
+	switch v := box.Style["zIndex"].(type) {
+	case json.Number:
+		if n, err := v.Int64(); err == nil {
+			return int(n)
+		}
+	case float64:
+		return int(v)
+	case int:
+		return v
+	}
+	return 0
 }
 
 // setupOverflowClip clips a box's children to its frame when overflow:hidden,
