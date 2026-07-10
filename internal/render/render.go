@@ -315,6 +315,10 @@ func paintText(c *pdf.Content, box *layout.Box, pageH float64, ctx stylesheet.Co
 	top := box.Frame.Y + insetTop
 	align := str(box.Style["textAlign"])
 
+	underline, strike := textDecoration(box.Style)
+	type decoSeg struct{ x, baseline, w float64 }
+	var segs []decoSeg
+
 	c.Save().FillRGB(r, g, b).BeginText()
 	if t.EmbeddedFont != nil {
 		c.SetEmbeddedFont(t.EmbeddedFont, t.Size)
@@ -325,6 +329,7 @@ func paintText(c *pdf.Content, box *layout.Box, pageH float64, ctx stylesheet.Co
 		lineW := stringWidth(line)
 		x := x0
 		wordSpace := 0.0
+		paintedW := lineW
 		switch align {
 		case "right":
 			x = x0 + (contentW - lineW)
@@ -334,12 +339,51 @@ func paintText(c *pdf.Content, box *layout.Box, pageH float64, ctx stylesheet.Co
 			// Justify all but the last line by widening inter-word gaps.
 			if gaps := strings.Count(line, " "); i < len(t.Lines)-1 && gaps > 0 && contentW > lineW {
 				wordSpace = (contentW - lineW) / float64(gaps)
+				paintedW = contentW
 			}
 		}
 		baseline := pageH - (top + float64(i)*t.LineHeight + t.Ascent)
 		c.WordSpacing(wordSpace).TextMatrix(1, 0, 0, 1, x, baseline).ShowText(line)
+		if (underline || strike) && paintedW > 0 {
+			segs = append(segs, decoSeg{x: x, baseline: baseline, w: paintedW})
+		}
 	}
-	c.EndText().Restore()
+	c.EndText()
+
+	// Decoration lines are stroked after the text object (paths are invalid inside
+	// BT/ET). Color defaults to the text color; thickness scales with font size.
+	if len(segs) > 0 {
+		decoCol := col
+		if v := str(box.Style["textDecorationColor"]); v != "" {
+			if pc, err := stylesheet.ParseColor(v); err == nil {
+				decoCol = pc
+			}
+		}
+		dr, dg, db := decoCol.RGB()
+		c.StrokeRGB(dr, dg, db).LineWidth(math.Max(0.5, t.Size/14))
+		for _, s := range segs {
+			if underline {
+				y := s.baseline - t.Size*0.12
+				c.MoveTo(s.x, y).LineTo(s.x+s.w, y).Stroke()
+			}
+			if strike {
+				y := s.baseline + t.Size*0.28
+				c.MoveTo(s.x, y).LineTo(s.x+s.w, y).Stroke()
+			}
+		}
+	}
+	c.Restore()
+}
+
+// textDecoration reports whether the resolved style asks for an underline and/or
+// a line-through. It accepts the textDecoration shorthand or textDecorationLine,
+// which may name both (e.g. "underline line-through").
+func textDecoration(style map[string]any) (underline, strike bool) {
+	deco := str(style["textDecoration"])
+	if deco == "" {
+		deco = str(style["textDecorationLine"])
+	}
+	return strings.Contains(deco, "underline"), strings.Contains(deco, "line-through")
 }
 
 // embeddedWidth measures a string's advance in an embedded font from its WinAnsi
