@@ -37,6 +37,8 @@ type textResolve struct {
 
 	letterSpacing float64 // extra advance per character (points), added to every glyph
 	wordSpacing   float64 // extra advance per space character (points)
+	maxLines      int     // cap on wrapped lines (0 = unlimited)
+	ellipsis      bool    // textOverflow:ellipsis — trailing … on a truncated last line
 }
 
 // stringWidth measures a string's advance, including letterSpacing (per character)
@@ -81,7 +83,7 @@ func (t *textResolve) wrap(maxW float64) []string {
 		return nil
 	}
 	if maxW <= 0 {
-		return []string{strings.Join(words, " ")}
+		return t.truncate([]string{strings.Join(words, " ")}, maxW)
 	}
 	var lines []string
 	cur := words[0]
@@ -94,7 +96,37 @@ func (t *textResolve) wrap(maxW float64) []string {
 			cur = w
 		}
 	}
-	return append(lines, cur)
+	return t.truncate(append(lines, cur), maxW)
+}
+
+// truncate caps the wrapped lines at maxLines. When textOverflow:ellipsis is set
+// and content was dropped, the last kept line gets a trailing … trimmed to fit.
+func (t *textResolve) truncate(lines []string, maxW float64) []string {
+	if t.maxLines <= 0 || len(lines) <= t.maxLines {
+		return lines
+	}
+	lines = lines[:t.maxLines]
+	if t.ellipsis {
+		i := len(lines) - 1
+		lines[i] = t.ellipsize(lines[i], maxW)
+	}
+	return lines
+}
+
+// ellipsize appends … to a line, dropping trailing runes until it fits maxW.
+func (t *textResolve) ellipsize(s string, maxW float64) string {
+	const e = "…"
+	if maxW <= 0 {
+		return s + e
+	}
+	r := []rune(strings.TrimRight(s, " "))
+	for len(r) > 0 {
+		if cand := string(r) + e; t.stringWidth(cand) <= maxW {
+			return cand
+		}
+		r = r[:len(r)-1]
+	}
+	return e
 }
 
 func resolveText(node *tree.Node, style map[string]any, ctx stylesheet.Context, eval Evaluator, store *fontstore.Store) *textResolve {
@@ -135,6 +167,8 @@ func resolveText(node *tree.Node, style map[string]any, ctx stylesheet.Context, 
 		transform:     transform,
 		letterSpacing: spacingOf(style, "letterSpacing", ctx),
 		wordSpacing:   spacingOf(style, "wordSpacing", ctx),
+		maxLines:      propInt(style, "maxLines", 0),
+		ellipsis:      str(style["textOverflow"]) == "ellipsis",
 	}
 
 	weight := 400
