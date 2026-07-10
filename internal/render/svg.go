@@ -7,16 +7,18 @@ import (
 	"strings"
 
 	"github.com/swish/feast/internal/contract"
+	"github.com/swish/feast/internal/fontstore"
 	"github.com/swish/feast/internal/layout"
 	"github.com/swish/feast/internal/pdf"
+	"github.com/swish/feast/internal/pdf/afm"
 	"github.com/swish/feast/internal/stylesheet"
 	"github.com/swish/feast/internal/svgparse"
 	"github.com/swish/feast/internal/tree"
 )
 
 // paintSVG draws an Svg box: it maps the viewBox onto the box frame (with the
-// Y-flip into PDF space) and draws each shape. Transforms, gradients, clip paths,
-// and svg <text> are later refinements.
+// Y-flip into PDF space) and draws each shape and text run. Transform attributes
+// and clip paths are later refinements.
 func paintSVG(c *pdf.Content, box *layout.Box, pageH float64) {
 	node := box.SVG
 	if node == nil {
@@ -70,7 +72,79 @@ func drawSVGNode(c *pdf.Content, n *tree.Node, grads map[string]*tree.Node) {
 		emitAndPaint(c, svgparse.Polyline(pointList(n)), n, grads)
 	case contract.TypePolygon:
 		emitAndPaint(c, svgparse.Polygon(pointList(n)), n, grads)
+	case contract.TypeText, contract.TypeTspan:
+		drawSVGText(c, n)
 	}
+}
+
+// drawSVGText paints an SVG <Text> (or bare <Tspan>) run at its (x,y) anchor
+// using a standard font. Because the SVG CTM flips Y, the text matrix carries a
+// local [1 0 0 -1] flip so glyphs render upright; fontSize is in user units and
+// is scaled by the viewBox mapping like any other coordinate.
+func drawSVGText(c *pdf.Content, n *tree.Node) {
+	s := svgText(n)
+	if s == "" {
+		return
+	}
+	fill := svgAttr(n, "fill", "black")
+	if fill == "none" {
+		return
+	}
+	col, err := stylesheet.ParseColor(fill)
+	if err != nil {
+		col = stylesheet.Color{A: 1}
+	}
+
+	size := numP(n, "fontSize")
+	if size <= 0 {
+		size = 16 // SVG default font-size
+	}
+	weight := 400
+	if w, ok := stylesheet.ParseFontWeight(n.Props["fontWeight"]); ok {
+		weight = w
+	}
+	base, ok := fontstore.StandardBaseFont(svgAttr(n, "fontFamily", "Helvetica"), weight, fontstore.ParseStyle(svgAttr(n, "fontStyle", "")))
+	if !ok {
+		base = "Helvetica"
+	}
+
+	x, y := numP(n, "x"), numP(n, "y")
+	// text-anchor shifts the origin: middle centers, end right-aligns.
+	if anchor := svgAttr(n, "textAnchor", "start"); anchor == "middle" || anchor == "end" {
+		if m, err := afm.Load(base); err == nil {
+			w := m.StringWidth(s, size)
+			if anchor == "middle" {
+				x -= w / 2
+			} else {
+				x -= w
+			}
+		}
+	}
+
+	r, g, b := col.RGB()
+	c.Save().FillRGB(r, g, b).BeginText()
+	c.SetFont(base, size)
+	c.TextMatrix(1, 0, 0, -1, x, y)
+	c.ShowText(s)
+	c.EndText().Restore()
+}
+
+// svgText concatenates the text of all TEXT_INSTANCE descendants (including those
+// inside nested <Tspan>) in document order.
+func svgText(n *tree.Node) string {
+	var b strings.Builder
+	var walk func(*tree.Node)
+	walk = func(nd *tree.Node) {
+		if nd.Type == contract.TypeTextInstance {
+			b.WriteString(nd.Value)
+			return
+		}
+		for _, c := range nd.Children {
+			walk(c)
+		}
+	}
+	walk(n)
+	return b.String()
 }
 
 func emitAndPaint(c *pdf.Content, p svgparse.Path, n *tree.Node, grads map[string]*tree.Node) {
