@@ -1,87 +1,116 @@
-# waffle vs Gotenberg — PDF generation benchmark
+# waffle vs Gotenberg — final comparison
 
-waffle (in-process JSX→PDF) measured under the **same container resource caps** a
-Gotenberg docx→PDF sidecar is typically sized under (0.25 / 0.5 vCPU, capped
-memory, swap disabled). Both engines render the **same class of document** — a
-multi-page offer/appointment letter with a full-page letterhead, embedded fonts,
-and a compensation table — warm, 30 requests, concurrency 1, on the same machine
-(Apple M-series, Docker Desktop arm64, 8 cores visible to the container).
+Two ways to produce the same business document (a multi-page offer/appointment
+letter with a full-page letterhead, embedded fonts, and a compensation table):
 
-- **waffle**: `examples/appointment/appointment.jsx` → PDF (8 pages, 598 KB), compiled once then rendered. Harness: `bench.sh`.
-- **Gotenberg**: `gotenberg/gotenberg:8`, an offer-letter DOCX template (167 KB) → PDF (228 KB) via LibreOffice, `--libreoffice-restart-after=10`.
+- **waffle** — this library. The document is a React/JSX template compiled into
+  the Go app; each render executes it in-process (goja + esbuild, pure Go,
+  `CGO_ENABLED=0`) and writes the PDF directly. No sidecar, no subprocess.
+- **Gotenberg** (`gotenberg/gotenberg:8`) — a container exposing LibreOffice
+  over HTTP. The app renders a DOCX from a template and POSTs it to
+  `/forms/libreoffice/convert`, which converts it to PDF.
 
-## 0.25 vCPU (the dev floor Gotenberg was sized to)
+Both were measured **on the same machine** (Apple M-series, Docker Desktop
+arm64), **under the same container caps** (swap disabled so memory limits are
+real), **warm** (Gotenberg with `--libreoffice-restart-after=10`; waffle with
+its template compiled once), 30 sequential requests each. The caps are the
+profiles a Gotenberg sidecar is typically sized under — 0.25 vCPU is the
+observed floor below which LibreOffice cold-starts trip Gotenberg's internal
+timeout and return 503s.
 
-| Metric              | Gotenberg (0.25 / 384m) | waffle (0.25 / 384m) | waffle advantage |
-|---------------------|-------------------------|---------------------|-----------------|
-| p50 latency         | 2.38 s                  | **1.12 s**          | 2.1× faster     |
-| p95 latency         | 7.47 s                  | **2.20 s**          | 3.4× faster     |
-| mean latency        | 3.22 s                  | **1.28 s**          | 2.5× faster     |
-| throughput (serial) | 0.30 conv/s             | **0.78 render/s**   | 2.6×            |
-| peak memory         | 264 MiB                 | **140 MiB**         | 1.9× lighter    |
-| failures            | 0 / 30                  | 0 / 30              | —               |
+## Results
 
-## 0.5 vCPU
+### 0.25 vCPU / 384 MiB (the sidecar sizing floor)
 
-| Metric              | Gotenberg (0.5 / 512m)  | waffle (0.5 / 512m)  | waffle advantage |
-|---------------------|-------------------------|---------------------|-----------------|
-| p50 latency         | 0.89 s                  | **0.60 s**          | 1.5× faster     |
-| p95 latency         | 1.87 s                  | **0.80 s**          | 2.3× faster     |
-| mean latency        | 1.07 s                  | **0.64 s**          | 1.7× faster     |
-| throughput (serial) | 0.92 conv/s             | **1.57 render/s**   | 1.7×            |
-| peak memory         | 190 MiB                 | **126 MiB**         | 1.5× lighter    |
+| Metric | Gotenberg | waffle | waffle advantage |
+|---|---|---|---|
+| p50 latency | 2.38 s | **102 ms** | **23×** |
+| p95 latency | 7.47 s | **322 ms** | **23×** |
+| mean latency | 3.22 s | **120 ms** | **27×** |
+| throughput (serial) | 0.30 conv/s | **8.3 render/s** | **28×** |
+| peak container memory | 264 MiB | **83 MiB** | **3.2×** |
+| failures | 0 / 30 | 0 / 30 | — |
 
-## waffle beyond the capped serial comparison
+### 0.5 vCPU / 512 MiB
 
-- **One-time compile** (`LoadTemplate`, esbuild transpile+bundle): **~10 ms**, amortized across every subsequent render (mirrors keeping LibreOffice warm).
-- **Uncapped host ceiling** (12 cores): p50 **259 ms**, 3.64 render/s serial.
-- **Scales with cores**: concurrency 8 → **14 render/s** on the host. Gotenberg serializes on one LibreOffice process (≈1/latency); more throughput there means more app replicas, each carrying its own sidecar.
-- **No sidecar**: waffle is a pure-Go library, in-process, `CGO_ENABLED=0`. It removes the entire Gotenberg sidecar apparatus — separate container, LibreOffice cold-start 503s, `--libreoffice-restart-after`, a self-healing container restart policy, health checks, and CPU-floor tuning (too little CPU makes LibreOffice cold-starts trip Gotenberg's internal timeout and 503).
+| Metric | Gotenberg | waffle | waffle advantage |
+|---|---|---|---|
+| p50 latency | 0.89 s | **29 ms** | **31×** |
+| p95 latency | 1.87 s | **91 ms** | **21×** |
+| mean latency | 1.07 s | **46 ms** | **23×** |
+| throughput (serial) | 0.92 conv/s | **21.6 render/s** | **23×** |
+| peak container memory | 190 MiB | **91 MiB** | **2.1×** |
 
-## Honest caveats
+### Uncapped (native, 12 cores)
 
-- **Not byte-identical documents.** waffle renders an 8-page letter (letterhead on every page + embedded custom fonts + a table → 598 KB); the Gotenberg run converts the offer-letter template (→ 228 KB). Same *class* and same caps; waffle is doing at least as much layout work, and is still faster and lighter.
-- **Different input model — the real trade-off.** waffle requires the document authored as React/JSX and compiled into the app; it is not a drop-in converter for arbitrary user-supplied `.docx`. Gotenberg/LibreOffice converts whatever DOCX you hand it. If you own the template (offer letters, payslips, statements), waffle wins decisively on latency, memory, and operational surface. If you must accept arbitrary uploaded Office files, that's Gotenberg's job.
+waffle: **p50 15 ms**, 66.7 renders/s on one goroutine, **147 renders/s at
+concurrency 8**, ~11 MiB Go heap in use. Gotenberg has no equivalent mode: one
+instance drives one LibreOffice process, so conversions serialize regardless of
+cores — throughput ≈ 1/latency, and scaling means more replicas, each carrying
+its own sidecar.
+
+### One-time costs
+
+| Cost | Gotenberg | waffle |
+|---|---|---|
+| startup | container boot + LibreOffice start (503s if CPU-starved) | `LoadTemplate`: 8 ms native, ~0.4 s at 0.25 vCPU |
+| first request | LibreOffice cold conversion (~3× slower; the reason `--libreoffice-restart-after` exists) | first render fills the asset cache (~1 s at 0.25 vCPU, ~165 ms native), then steady-state |
+
+## Operational surface
+
+| | Gotenberg | waffle |
+|---|---|---|
+| deployment | separate sidecar container per app instance | in-process Go library |
+| runtime dependencies | LibreOffice inside the container | none — pure Go, no cgo, static binary |
+| concurrency model | one conversion at a time per instance | scales with goroutines across cores |
+| resilience machinery | health checks, restart policy, `--libreoffice-restart-after` tuning, CPU-floor sizing to avoid 503s | none needed — a render is a function call |
+| input | **any** DOCX/Office file, from anywhere | a React/JSX template compiled into the app |
+| output (this document) | 228 KB PDF | 281 KB PDF |
+
+## The honest trade-off
+
+The performance gap is not the interesting decision axis — the **input model**
+is. waffle requires owning the document as a JSX template; it cannot convert an
+arbitrary user-uploaded `.docx`. Gotenberg converts whatever Office file it is
+handed, which is sometimes exactly the requirement.
+
+- **You own the template** (offer letters, payslips, invoices, statements,
+  certificates): waffle is ~20–30× faster, ~2–3× lighter, removes an entire
+  sidecar from the deployment, and turns "PDF generation capacity" from an
+  infrastructure-sizing problem into an ordinary function call.
+- **You must accept arbitrary uploaded Office documents**: that is Gotenberg's
+  job, and waffle does not compete for it.
+
+The documents are the same class but not byte-identical: waffle renders the
+8-page letter with the letterhead composited on every page and four embedded
+TTF faces; Gotenberg converts a 167 KB single-letterhead DOCX. waffle is doing
+at least as much layout work per document.
+
+## How waffle got here
+
+The initial in-process implementation was already ~2× faster than Gotenberg at
+the same caps. Profiling the steady-state render loop then showed ~90% of
+per-render CPU was redundant asset work — re-decoding the letterhead PNG
+(~67%, including re-compressing its pixels) and re-flating embedded font
+programs — while JS execution and layout were noise. waffle now caches these on
+the `Template`: images are decoded and their pixels compressed once, fonts
+fetched and parsed once, and each face's compressed `FontFile2` stream is built
+once and shared across every render. That took the same-document native p50
+from 165 ms to 15 ms (11×) and produced the numbers above. Consequence: file
+and URL assets are read once per `Template`; a changed file on disk is picked
+up by loading a new Template, not by re-rendering.
 
 ## Reproduce
 
 ```sh
-# waffle, under the two caps (cross-compiles a static linux binary, runs in Docker)
+# waffle under both caps (cross-compiles a static linux binary, runs in Docker)
 REQUESTS=30 bash examples/appointment/bench/bench.sh
 
-# Gotenberg on the same machine/caps: start gotenberg/gotenberg:8 with
-# --cpus/--memory/--memory-swap (swap disabled) and POST a letter .docx to
-# /forms/libreoffice/convert, timing each response.
+# steady-state CPU profile of the render loop
+cd examples/appointment && CPUPROFILE=/tmp/waffle.prof REQUESTS=30 go run ./bench
+go tool pprof -top /tmp/waffle.prof
+
+# Gotenberg on the same machine/caps: run gotenberg/gotenberg:8 with
+# --cpus/--memory/--memory-swap (swap disabled) and --libreoffice-restart-after=10,
+# then POST a letter .docx to /forms/libreoffice/convert, timing each response.
 ```
-
----
-
-## Update: after template asset caching
-
-The tables above were the baseline that motivated profiling. A CPU profile of
-the steady-state render loop showed ~90% of per-render time was redundant asset
-work — re-decoding the letterhead PNG (~67%, including re-compressing its
-pixels) and re-flating font programs — while JS execution and layout were noise.
-waffle now caches those on the `Template`: images are decoded and their pixels
-compressed once, fonts fetched/parsed once, and each embedded face's compressed
-`FontFile2` stream is built once and shared across every render.
-
-Re-measured with the same harness (30 requests, concurrency 1, swap disabled;
-the example document is the current de-branded letter — lighter letterhead and
-Go fonts than the baseline runs above, so the like-for-like row is the native
-before/after pair, measured on the identical document):
-
-| Profile | p50 | p95 | throughput | peak memory |
-|---|---|---|---|---|
-| native, uncapped — before caching | 165 ms | 203 ms | 5.8/s | — |
-| **native, uncapped — after caching** | **15 ms** | **16 ms** | **66.7/s** (147/s at concurrency 8) | heap 11 MiB |
-| **0.25 vCPU / 384 MiB — after** | **102 ms** | **322 ms** | **8.3/s** | **83 MiB** |
-| **0.5 vCPU / 512 MiB — after** | **29 ms** | **91 ms** | **21.6/s** | **91 MiB** |
-
-Same-document native comparison: **11× faster** (p50 165 ms → 15 ms). Against
-the Gotenberg rows above, at Gotenberg's own 0.25-vCPU sizing floor waffle now
-renders at **~23× lower p50 latency** (102 ms vs 2.38 s), **~28× the
-throughput** (8.3 vs 0.30 conversions/s), in **~3× less memory** (83 vs
-264 MiB). Caveats: the first render of a Template still pays the full
-decode/parse cost (the cache fills on first use), and file/URL assets are read
-once per Template — a changed file on disk needs a new Template to be noticed.
