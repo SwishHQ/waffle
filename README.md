@@ -76,12 +76,12 @@ The engine is feature-complete for the core react-pdf surface, and React runs in
 
 - **PDF writer** (`internal/pdf`) — object model, deterministic xref/trailer, FlateDecode streams, content-stream operator builder, 14 standard Type1 fonts with Adobe Core AFM metrics, image XObjects with SMask.
 - **Layout** — flexbox engine (grow/shrink/justify/align, percentages, absolute/fixed positioning, aspect-ratio, `flexWrap` + `alignContent`, min/max width/height), react-pdf-shaped stylesheet (units, colors, shorthands, media queries, inheritance).
-- **Text** — measurement, greedy wrapping, text-align incl. justify, line-height; the 14 standard fonts **plus custom fonts** (`Font.register` a TTF as a data URI → embedded via `FontFile2`, measured with real glyph advances).
+- **Text** — measurement, greedy wrapping, text-align incl. justify, line-height, `letterSpacing`/`wordSpacing`, `textTransform` (uppercase/lowercase/capitalize), `textDecoration` (underline/line-through), `maxLines` + `textOverflow: ellipsis`; the 14 standard fonts **plus custom fonts** (`Font.register` a TTF via a **data URI, http(s) URL, or file path** → embedded via `FontFile2`, measured with real glyph advances).
 - **Pagination** — block + mid-element splitting, forced breaks, `minPresenceAhead`, orphans/widows, fixed headers/footers, `{pageNumber}`/`{totalPages}` templates.
-- **Graphics** — JPEG/PNG decode from data URI, **http(s) URL, or file path**; image `objectFit` (fill/contain/cover/none/scale-down, centered + clipped); SVG (paths + shapes + **linear/radial gradient fills**); Canvas replay.
-- **Links** — block-level `<Link src>` renders a clickable URI annotation.
-- **Rounded corners** — `borderRadius` (per-corner + `%`) on backgrounds, uniform borders, and image clipping (circular avatars via `borderRadius: '50%'`).
-- **Opacity** — `opacity` via ExtGState, applied to a box and its subtree, with CSS-style nested multiplication.
+- **Graphics** — JPEG/PNG decode from data URI, **http(s) URL, or file path**; image `objectFit` (fill/contain/cover/none/scale-down) with `objectPosition`; SVG (paths + shapes + **linear/radial gradient fills** + **`<Text>`/`<Tspan>`**); Canvas replay.
+- **Links & bookmarks** — block-level `<Link src>` renders a clickable URI annotation; a `bookmark` prop builds a nested PDF **outline** (document navigation tree) with XYZ destinations.
+- **Rounded corners & border styles** — `borderRadius` (per-corner + `%`) on backgrounds, uniform borders, and image clipping (circular avatars via `borderRadius: '50%'`); `borderStyle` solid/**dashed**/**dotted**.
+- **Opacity & stacking** — `opacity` via ExtGState (nested multiplication) and `zIndex` paint ordering among siblings, applied to a box and its subtree.
 - **Transforms** — `transform` (`rotate`/`scale`/`translate`/`skew`/`matrix`) about `transform-origin` (default center), applied to a box and its subtree.
 - **Encryption** — `<Document userPassword ownerPassword permissions>` produces a password-protected PDF (standard security handler, RC4-128).
 - **JS engine** (`internal/jsruntime`) — esbuild transpiles JSX/TSX and bundles embedded React + `@feast/react`; goja executes it to produce a `feast-tree/v1` document. Real React runs: components, props, `.map`, **hooks** (`useState`/`useMemo`/`useContext`/`useRef`/`useReducer`/…), **context** (`<Ctx.Provider>` + `useContext`), and `React.memo`/`forwardRef`.
@@ -92,7 +92,7 @@ A document is rendered as a **pure function of props** in one synchronous pass: 
 
 Canvas `paint={fn}` works too: `<Canvas paint={(painter, w, h) => painter.rect(0,0,w,h).fill('#f00')} />` runs the react-pdf painter API on the VM and replays into the PDF.
 
-Next: render-props that return styled element subtrees (text-returning ones work today), then forms (AcroForm), encryption, SVG gradients, and external font/image fetch. Tracked in [PLAN.md](PLAN.md).
+Next: inline text runs (mixed styles within one `<Text>`), forms (AcroForm), SVG `transform`/`clipPath`, and AES encryption. Tracked in [PLAN.md](PLAN.md).
 
 ## Develop
 
@@ -133,6 +133,7 @@ internal/flexbox/        flexbox layout engine
 internal/layout/         tree + styles → flexbox → positioned boxes → pagination
 internal/render/         paint boxes to a PDF content stream (text, image, svg, canvas)
 internal/imaging/ svgparse/ fontstore/   graphics + font support
+internal/fetch/          data:/http(s)/file byte loader (external fonts)
 examples/                runnable examples (examples/react is the headline)
 testdata/                golden files and fixtures
 ```
