@@ -653,8 +653,8 @@ func paintText(c *pdf.Content, box *layout.Box, pageH float64, ctx stylesheet.Co
 
 // paintRunLines paints a Text laid out as inline styled runs: each line is a
 // sequence of positioned fragments, each drawn with its own font, size, color,
-// and letter spacing at a shared baseline. Alignment supports left/center/right;
-// justify falls back to left for mixed runs.
+// and letter spacing at a shared baseline. Alignment supports left/center/right
+// and justify (every line but the last, by widening the inter-word gaps).
 func paintRunLines(c *pdf.Content, box *layout.Box, t *layout.TextInfo, pageH float64, ctx stylesheet.Context) {
 	insetLeft := lengthPt(box.Style, "borderLeftWidth", ctx) + lengthPt(box.Style, "paddingLeft", ctx)
 	insetRight := lengthPt(box.Style, "borderRightWidth", ctx) + lengthPt(box.Style, "paddingRight", ctx)
@@ -684,14 +684,33 @@ func paintRunLines(c *pdf.Content, box *layout.Box, t *layout.TextInfo, pageH fl
 			cw -= t.TextIndent
 		}
 		lineStart := base
+		// extraPerGap widens each inter-word gap for justify. The single-run path
+		// applies one wordSpacing across the line; mixed runs position each fragment
+		// independently, so we instead shift every fragment right by the accumulated
+		// gap-widening that precedes it. The last line is left ragged, as usual.
+		extraPerGap := 0.0
 		switch align {
 		case "right":
 			lineStart = base + (cw - lineW)
 		case "center":
 			lineStart = base + (cw-lineW)/2
+		case "justify":
+			gaps := 0
+			for j := 1; j < len(line); j++ {
+				if line[j].SpaceBefore {
+					gaps++
+				}
+			}
+			if i < len(t.RunLines)-1 && gaps > 0 && cw > lineW {
+				extraPerGap = (cw - lineW) / float64(gaps)
+			}
 		}
 		baseline := pageH - (top + float64(i)*t.LineHeight + t.Ascent)
+		gapsSeen := 0
 		for _, f := range line {
+			if f.SpaceBefore {
+				gapsSeen++
+			}
 			col := stylesheet.Color{A: 1}
 			if f.Color != "" {
 				if pc, err := stylesheet.ParseColor(f.Color); err == nil {
@@ -699,7 +718,7 @@ func paintRunLines(c *pdf.Content, box *layout.Box, t *layout.TextInfo, pageH fl
 				}
 			}
 			r, g, b := col.RGB()
-			fx := lineStart + f.X
+			fx := lineStart + f.X + float64(gapsSeen)*extraPerGap
 			c.FillRGB(r, g, b).BeginText()
 			if f.EmbeddedFont != nil {
 				c.SetEmbeddedFont(f.EmbeddedFont, f.Size)

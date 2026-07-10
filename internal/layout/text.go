@@ -323,6 +323,7 @@ func (t *textResolve) measureRuns(availW float64) flexbox.Size {
 		cur = append(cur, RunFragment{
 			Text:          p.text,
 			X:             x,
+			SpaceBefore:   gap > 0, // a widened-for-justify inter-word gap precedes this fragment
 			BaseFont:      p.style.base,
 			EmbeddedFont:  p.style.embedded,
 			Size:          p.style.size,

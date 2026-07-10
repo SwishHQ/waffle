@@ -69,8 +69,12 @@ type TextInfo struct {
 // RunFragment is one styled piece of text positioned on a line, at X points from
 // the line's start. Exactly one of BaseFont / EmbeddedFont is set.
 type RunFragment struct {
-	Text          string
-	X             float64
+	Text string
+	X    float64
+	// SpaceBefore marks that a word-space separates this fragment from the previous
+	// one on the same line (false at a line start, and at a mid-word style change
+	// where no space intervenes). The renderer widens exactly these gaps to justify.
+	SpaceBefore   bool
 	BaseFont      string
 	EmbeddedFont  *pdf.EmbeddedFont
 	Size          float64
