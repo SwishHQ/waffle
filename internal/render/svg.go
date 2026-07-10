@@ -38,52 +38,100 @@ func paintSVG(c *pdf.Content, box *layout.Box, pageH float64) {
 	}
 	sx, sy := f.W/vbW, f.H/vbH
 
-	grads := collectGradients(node)
+	defs := collectDefs(node)
 
 	c.Save()
 	// Map SVG user space (y-down) onto the box in PDF space (y-up).
 	c.Transform(sx, 0, 0, -sy, f.X-minX*sx, (pageH-f.Y)+minY*sy)
 	for _, child := range node.Children {
-		drawSVGNode(c, child, grads)
+		drawSVGNode(c, child, defs)
 	}
 	c.Restore()
 }
 
-func drawSVGNode(c *pdf.Content, n *tree.Node, grads map[string]*tree.Node) {
+// svgDefs indexes referenceable SVG definitions (gradients, clip paths) by id.
+type svgDefs struct {
+	gradients map[string]*tree.Node
+	clipPaths map[string]*tree.Node
+}
+
+func drawSVGNode(c *pdf.Content, n *tree.Node, defs svgDefs) {
 	// A transform attribute establishes a new coordinate system for this node and
-	// its descendants; it composes under the SVG viewBox CTM already in effect.
+	// its descendants; a clip-path restricts painting to a shape. Both wrap the
+	// node in graphics-state saves that compose under the viewBox CTM.
+	saves := 0
 	if tf := svgAttr(n, "transform", ""); tf != "" {
 		if m, ok := parseSVGTransform(tf); ok {
 			c.Save()
 			c.Transform(m.A, m.B, m.C, m.D, m.E, m.F)
-			defer c.Restore()
+			saves++
 		}
 	}
+	if cp := svgAttr(n, "clipPath", ""); cp != "" {
+		if id, ok := gradientID(cp); ok {
+			if clip := defs.clipPaths[id]; clip != nil {
+				c.Save()
+				emitClip(c, clip)
+				saves++
+			}
+		}
+	}
+
 	switch n.Type {
 	case contract.TypeG:
 		for _, ch := range n.Children {
-			drawSVGNode(c, ch, grads)
+			drawSVGNode(c, ch, defs)
 		}
+	case contract.TypeText, contract.TypeTspan:
+		drawSVGText(c, n)
+	default:
+		if p, ok := nodePath(n); ok {
+			emitAndPaint(c, p, n, defs.gradients)
+		}
+	}
+
+	for i := 0; i < saves; i++ {
+		c.Restore()
+	}
+}
+
+// nodePath returns the outline path for an SVG shape node (path/rect/circle/
+// ellipse/line/polyline/polygon), or ok=false for non-shape nodes.
+func nodePath(n *tree.Node) (svgparse.Path, bool) {
+	switch n.Type {
 	case contract.TypePath:
 		if d, ok := n.Props["d"].(string); ok {
 			if p, err := svgparse.ParsePath(d); err == nil {
-				emitAndPaint(c, p, n, grads)
+				return p, true
 			}
 		}
 	case contract.TypeRect:
-		emitAndPaint(c, svgparse.Rect(numP(n, "x"), numP(n, "y"), numP(n, "width"), numP(n, "height"), numP(n, "rx"), numP(n, "ry")), n, grads)
+		return svgparse.Rect(numP(n, "x"), numP(n, "y"), numP(n, "width"), numP(n, "height"), numP(n, "rx"), numP(n, "ry")), true
 	case contract.TypeCircle:
-		emitAndPaint(c, svgparse.Circle(numP(n, "cx"), numP(n, "cy"), numP(n, "r")), n, grads)
+		return svgparse.Circle(numP(n, "cx"), numP(n, "cy"), numP(n, "r")), true
 	case contract.TypeEllipse:
-		emitAndPaint(c, svgparse.Ellipse(numP(n, "cx"), numP(n, "cy"), numP(n, "rx"), numP(n, "ry")), n, grads)
+		return svgparse.Ellipse(numP(n, "cx"), numP(n, "cy"), numP(n, "rx"), numP(n, "ry")), true
 	case contract.TypeLine:
-		emitAndPaint(c, svgparse.Line(numP(n, "x1"), numP(n, "y1"), numP(n, "x2"), numP(n, "y2")), n, grads)
+		return svgparse.Line(numP(n, "x1"), numP(n, "y1"), numP(n, "x2"), numP(n, "y2")), true
 	case contract.TypePolyline:
-		emitAndPaint(c, svgparse.Polyline(pointList(n)), n, grads)
+		return svgparse.Polyline(pointList(n)), true
 	case contract.TypePolygon:
-		emitAndPaint(c, svgparse.Polygon(pointList(n)), n, grads)
-	case contract.TypeText, contract.TypeTspan:
-		drawSVGText(c, n)
+		return svgparse.Polygon(pointList(n)), true
+	}
+	return nil, false
+}
+
+// emitClip intersects the clip region with the union of a clipPath's child shapes.
+func emitClip(c *pdf.Content, clip *tree.Node) {
+	drew := false
+	for _, ch := range clip.Children {
+		if p, ok := nodePath(ch); ok {
+			emitPath(c, p)
+			drew = true
+		}
+	}
+	if drew {
+		c.Clip().EndPath()
 	}
 }
 
@@ -382,15 +430,18 @@ func svgArg(args []float64, i int, def float64) float64 {
 	return def
 }
 
-// collectGradients indexes LinearGradient/RadialGradient nodes by id across the
-// Svg subtree (typically under <Defs>), so fill="url(#id)" can resolve them.
-func collectGradients(n *tree.Node) map[string]*tree.Node {
-	m := map[string]*tree.Node{}
+// collectDefs indexes referenceable definitions (gradients, clip paths) by id
+// across the Svg subtree (typically under <Defs>), so url(#id) references resolve.
+func collectDefs(n *tree.Node) svgDefs {
+	defs := svgDefs{gradients: map[string]*tree.Node{}, clipPaths: map[string]*tree.Node{}}
 	var walk func(*tree.Node)
 	walk = func(nd *tree.Node) {
-		if nd.Type == contract.TypeLinearGradient || nd.Type == contract.TypeRadialGradient {
-			if id, ok := nd.Props["id"].(string); ok && id != "" {
-				m[id] = nd
+		if id, ok := nd.Props["id"].(string); ok && id != "" {
+			switch nd.Type {
+			case contract.TypeLinearGradient, contract.TypeRadialGradient:
+				defs.gradients[id] = nd
+			case contract.TypeClipPath:
+				defs.clipPaths[id] = nd
 			}
 		}
 		for _, c := range nd.Children {
@@ -398,7 +449,7 @@ func collectGradients(n *tree.Node) map[string]*tree.Node {
 		}
 	}
 	walk(n)
-	return m
+	return defs
 }
 
 // gradientID extracts the id from a fill/stroke of the form url(#id).
