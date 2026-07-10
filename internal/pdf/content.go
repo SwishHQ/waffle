@@ -18,6 +18,7 @@ type Content struct {
 	imageRes   map[*ImageSpec]Name
 	links      []LinkAnnotation // hyperlink annotations for this page
 	notes      []NoteAnnotation // text-note annotations for this page
+	fields     []FormField      // AcroForm field widgets for this page
 	alphaSeq   []float64        // constant-alpha values in first-use order
 	alphaRes   map[float64]Name // alpha -> ExtGState resource name (GS1, GS2, ...)
 	embSeq     []*EmbeddedFont  // embedded TrueType fonts in first-use order

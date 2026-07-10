@@ -49,6 +49,8 @@ type Document struct {
 	embFontObjs map[*EmbeddedFont]Reference // embedded font -> font object reference
 	shadingObjs map[*Shading]Reference      // gradient shading -> shading object reference
 	outline     []*Outline                  // document outline (bookmarks); nil if none
+
+	formFieldRefs []Reference // AcroForm field widgets across all pages
 }
 
 // New creates a Document with the given options.
@@ -138,14 +140,21 @@ func (d *Document) AddPage(width, height float64, content *Content) {
 		Name("Resources"): resources,
 		Name("Contents"):  contentRef,
 	}
-	links, notes := content.Links(), content.Notes()
-	if len(links) > 0 || len(notes) > 0 {
-		annots := make(Array, 0, len(links)+len(notes))
+	links, notes, fields := content.Links(), content.Notes(), content.FormFields()
+	if len(links) > 0 || len(notes) > 0 || len(fields) > 0 {
+		annots := make(Array, 0, len(links)+len(notes)+len(fields))
 		for _, ln := range links {
 			annots = append(annots, d.w.Add(linkAnnot(ln)))
 		}
 		for _, nt := range notes {
 			annots = append(annots, d.w.Add(noteAnnot(nt)))
+		}
+		// A field widget is referenced both here (for page rendering) and from the
+		// AcroForm /Fields array (for form semantics).
+		for _, fl := range fields {
+			ref := d.w.Add(fl.widgetAnnot())
+			annots = append(annots, ref)
+			d.formFieldRefs = append(d.formFieldRefs, ref)
 		}
 		pageDict[Name("Annots")] = annots
 	}
@@ -216,6 +225,9 @@ func (d *Document) WriteTo(out io.Writer) (int64, error) {
 		if d.opts.PageMode == "" {
 			catalog[Name("PageMode")] = Name("UseOutlines")
 		}
+	}
+	if ref, ok := d.acroForm(); ok {
+		catalog[Name("AcroForm")] = ref
 	}
 	d.w.Root = d.w.Add(catalog)
 
