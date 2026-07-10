@@ -17,6 +17,7 @@ type Content struct {
 	imageSeq   []*ImageSpec    // images in first-use order
 	imageRes   map[*ImageSpec]Name
 	links      []LinkAnnotation // hyperlink annotations for this page
+	notes      []NoteAnnotation // text-note annotations for this page
 	alphaSeq   []float64        // constant-alpha values in first-use order
 	alphaRes   map[float64]Name // alpha -> ExtGState resource name (GS1, GS2, ...)
 	embSeq     []*EmbeddedFont  // embedded TrueType fonts in first-use order
@@ -40,6 +41,22 @@ func (c *Content) AddLink(x0, y0, x1, y1 float64, uri string) {
 
 // Links returns the hyperlink annotations recorded for this page.
 func (c *Content) Links() []LinkAnnotation { return c.links }
+
+// NoteAnnotation is a text (sticky-note) annotation anchored at a page-space
+// point (its icon's top-left), carrying popup text. Coordinates are in default
+// user space (bottom-left origin), so it is unaffected by the content CTM.
+type NoteAnnotation struct {
+	X, Y float64
+	Text string
+}
+
+// AddNote records a text-note annotation anchored at the given page-space point.
+func (c *Content) AddNote(x, y float64, text string) {
+	c.notes = append(c.notes, NoteAnnotation{X: x, Y: y, Text: text})
+}
+
+// Notes returns the text-note annotations recorded for this page.
+func (c *Content) Notes() []NoteAnnotation { return c.notes }
 
 // SetAlpha sets the constant alpha for fills and strokes (ca/CA) via an
 // ExtGState resource, recording the alpha so the page can build /ExtGState.

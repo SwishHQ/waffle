@@ -21,6 +21,7 @@ import (
 	"github.com/swish/feast/internal/pdf/afm"
 	"github.com/swish/feast/internal/stylesheet"
 	"github.com/swish/feast/internal/transform"
+	"github.com/swish/feast/internal/tree"
 )
 
 // Options configure rendering.
@@ -150,6 +151,7 @@ func paintBox(c *pdf.Content, box *layout.Box, pageH float64, ctx stylesheet.Con
 	paintBorders(c, box, pageH, ctx)
 	paintText(c, box, pageH, ctx)
 	paintLink(c, box, pageH)
+	paintNote(c, box, pageH)
 	clipped := setupOverflowClip(c, box, pageH, ctx)
 	for _, child := range zOrder(box.Children) {
 		paintBox(c, child, pageH, ctx, op)
@@ -276,6 +278,38 @@ func paintLink(c *pdf.Content, box *layout.Box, pageH float64) {
 	}
 	f := box.Frame
 	c.AddLink(f.X, pageH-(f.Y+f.H), f.X+f.W, pageH-f.Y, uri)
+}
+
+// paintNote records a text (sticky-note) annotation for a <Note> element, anchored
+// at the box's top-left corner. The note text comes from its TEXT_INSTANCE
+// children.
+func paintNote(c *pdf.Content, box *layout.Box, pageH float64) {
+	if box.Node == nil || box.Node.Type != contract.TypeNote {
+		return
+	}
+	text := noteText(box.Node)
+	if text == "" {
+		return
+	}
+	f := box.Frame
+	c.AddNote(f.X, pageH-f.Y, text)
+}
+
+// noteText concatenates the text of a Note's TEXT_INSTANCE descendants.
+func noteText(n *tree.Node) string {
+	var b strings.Builder
+	var walk func(*tree.Node)
+	walk = func(nd *tree.Node) {
+		if nd.Type == contract.TypeTextInstance {
+			b.WriteString(nd.Value)
+			return
+		}
+		for _, ch := range nd.Children {
+			walk(ch)
+		}
+	}
+	walk(n)
+	return b.String()
 }
 
 func linkURI(props map[string]any) string {

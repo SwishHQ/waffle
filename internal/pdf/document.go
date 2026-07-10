@@ -138,10 +138,14 @@ func (d *Document) AddPage(width, height float64, content *Content) {
 		Name("Resources"): resources,
 		Name("Contents"):  contentRef,
 	}
-	if links := content.Links(); len(links) > 0 {
-		annots := make(Array, 0, len(links))
+	links, notes := content.Links(), content.Notes()
+	if len(links) > 0 || len(notes) > 0 {
+		annots := make(Array, 0, len(links)+len(notes))
 		for _, ln := range links {
 			annots = append(annots, d.w.Add(linkAnnot(ln)))
+		}
+		for _, nt := range notes {
+			annots = append(annots, d.w.Add(noteAnnot(nt)))
 		}
 		pageDict[Name("Annots")] = annots
 	}
@@ -160,6 +164,20 @@ func linkAnnot(ln LinkAnnotation) Dict {
 			Name("S"):   Name("URI"),
 			Name("URI"): LiteralString(ln.URI),
 		},
+	}
+}
+
+// noteAnnot builds a text (sticky-note) annotation, closed by default, with a
+// standard note icon. Its Rect is the small icon box at the anchor point.
+func noteAnnot(nt NoteAnnotation) Dict {
+	const icon = 18 // conventional note-icon size in points
+	return Dict{
+		Name("Type"):     Name("Annot"),
+		Name("Subtype"):  Name("Text"),
+		Name("Rect"):     Array{Real(nt.X), Real(nt.Y - icon), Real(nt.X + icon), Real(nt.Y)},
+		Name("Contents"): TextString(nt.Text),
+		Name("Name"):     Name("Note"),
+		Name("Open"):     Boolean(false),
 	}
 }
 
