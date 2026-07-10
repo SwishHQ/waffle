@@ -47,6 +47,7 @@ type Document struct {
 	fontObjs    map[string]Reference        // base font -> font object reference
 	imageObjs   map[*ImageSpec]Reference    // image spec -> XObject reference
 	embFontObjs map[*EmbeddedFont]Reference // embedded font -> font object reference
+	shadingObjs map[*Shading]Reference      // gradient shading -> shading object reference
 }
 
 // New creates a Document with the given options.
@@ -60,6 +61,7 @@ func New(opts Options) *Document {
 		fontObjs:    make(map[string]Reference),
 		imageObjs:   make(map[*ImageSpec]Reference),
 		embFontObjs: make(map[*EmbeddedFont]Reference),
+		shadingObjs: make(map[*Shading]Reference),
 	}
 	return d
 }
@@ -117,6 +119,14 @@ func (d *Document) AddPage(width, height float64, content *Content) {
 			gs[res] = Dict{Name("ca"): Real(a), Name("CA"): Real(a)}
 		}
 		resources[Name("ExtGState")] = gs
+	}
+	if shs := content.Shadings(); len(shs) > 0 {
+		sd := Dict{}
+		for _, sh := range shs {
+			res, _ := content.ShadingResource(sh)
+			sd[res] = d.shadingRef(sh)
+		}
+		resources[Name("Shading")] = sd
 	}
 
 	pageRef := d.w.Alloc()

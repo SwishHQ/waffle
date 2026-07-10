@@ -11,16 +11,18 @@ import (
 // chainable. It also records which standard fonts were used so the page can
 // build a matching /Font resource dictionary.
 type Content struct {
-	buf      bytes.Buffer
-	fontSeq  []string        // base fonts in first-use order
-	fontRes  map[string]Name // base font -> resource name (F1, F2, ...)
-	imageSeq []*ImageSpec    // images in first-use order
-	imageRes map[*ImageSpec]Name
-	links    []LinkAnnotation // hyperlink annotations for this page
-	alphaSeq []float64        // constant-alpha values in first-use order
-	alphaRes map[float64]Name // alpha -> ExtGState resource name (GS1, GS2, ...)
-	embSeq   []*EmbeddedFont  // embedded TrueType fonts in first-use order
-	embRes   map[*EmbeddedFont]Name
+	buf        bytes.Buffer
+	fontSeq    []string        // base fonts in first-use order
+	fontRes    map[string]Name // base font -> resource name (F1, F2, ...)
+	imageSeq   []*ImageSpec    // images in first-use order
+	imageRes   map[*ImageSpec]Name
+	links      []LinkAnnotation // hyperlink annotations for this page
+	alphaSeq   []float64        // constant-alpha values in first-use order
+	alphaRes   map[float64]Name // alpha -> ExtGState resource name (GS1, GS2, ...)
+	embSeq     []*EmbeddedFont  // embedded TrueType fonts in first-use order
+	embRes     map[*EmbeddedFont]Name
+	shadingSeq []*Shading // gradient shadings in first-use order
+	shadingRes map[*Shading]Name
 }
 
 // LinkAnnotation is a clickable URI link over a rectangle, in page (default user)
