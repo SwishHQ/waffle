@@ -306,6 +306,13 @@ func paintText(c *pdf.Content, box *layout.Box, pageH float64, ctx stylesheet.Co
 		}
 		stringWidth = func(s string) float64 { return metrics.StringWidth(s, t.Size) }
 	}
+	// letterSpacing (PDF Tc) adds to every glyph's advance, so widths used for
+	// alignment/justify must include it too.
+	if t.LetterSpacing != 0 {
+		base := stringWidth
+		ls := t.LetterSpacing
+		stringWidth = func(s string) float64 { return base(s) + ls*float64(len([]rune(s))) }
+	}
 
 	insetLeft := lengthPt(box.Style, "borderLeftWidth", ctx) + lengthPt(box.Style, "paddingLeft", ctx)
 	insetRight := lengthPt(box.Style, "borderRightWidth", ctx) + lengthPt(box.Style, "paddingRight", ctx)
@@ -324,6 +331,9 @@ func paintText(c *pdf.Content, box *layout.Box, pageH float64, ctx stylesheet.Co
 		c.SetEmbeddedFont(t.EmbeddedFont, t.Size)
 	} else {
 		c.SetFont(t.BaseFont, t.Size)
+	}
+	if t.LetterSpacing != 0 {
+		c.CharSpacing(t.LetterSpacing)
 	}
 	for i, line := range t.Lines {
 		lineW := stringWidth(line)

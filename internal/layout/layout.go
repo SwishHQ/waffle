@@ -42,19 +42,20 @@ type ImageInfo struct {
 // paint. Exactly one font source is set: BaseFont (a standard-14 font name) for
 // standard fonts, or EmbeddedFont for a registered custom font.
 type TextInfo struct {
-	Content      string
-	Lines        []string // wrapped lines
-	BaseFont     string
-	Size         float64
-	Ascent       float64 // points from the box top to the baseline
-	LineHeight   float64
-	Color        string
-	Orphans      int
-	Widows       int
-	Template     string            // string render-prop template (page numbers); "" if none
-	CallbackID   string            // function render-prop callback id ($cb); "" if none
-	Transform    string            // textTransform, re-applied to per-page substituted content
-	EmbeddedFont *pdf.EmbeddedFont // registered custom font to embed; nil for standard fonts
+	Content       string
+	Lines         []string // wrapped lines
+	BaseFont      string
+	Size          float64
+	Ascent        float64 // points from the box top to the baseline
+	LineHeight    float64
+	Color         string
+	Orphans       int
+	Widows        int
+	Template      string            // string render-prop template (page numbers); "" if none
+	CallbackID    string            // function render-prop callback id ($cb); "" if none
+	Transform     string            // textTransform, re-applied to per-page substituted content
+	LetterSpacing float64           // extra advance per character (points)
+	EmbeddedFont  *pdf.EmbeddedFont // registered custom font to embed; nil for standard fonts
 }
 
 // Page is one laid-out page.
@@ -215,19 +216,20 @@ func toBox(ln *layoutNode, absX, absY float64) *Box {
 	}
 	if t := ln.text; t != nil {
 		box.Text = &TextInfo{
-			Content:      t.content,
-			Lines:        t.lines,
-			BaseFont:     t.base,
-			Size:         t.size,
-			Ascent:       t.ascent,
-			LineHeight:   t.lineHeight,
-			Color:        t.color,
-			Orphans:      t.orphans,
-			Widows:       t.widows,
-			Template:     t.template,
-			CallbackID:   t.callbackID,
-			Transform:    t.transform,
-			EmbeddedFont: t.embedded,
+			Content:       t.content,
+			Lines:         t.lines,
+			BaseFont:      t.base,
+			Size:          t.size,
+			Ascent:        t.ascent,
+			LineHeight:    t.lineHeight,
+			Color:         t.color,
+			Orphans:       t.orphans,
+			Widows:        t.widows,
+			Template:      t.template,
+			CallbackID:    t.callbackID,
+			Transform:     t.transform,
+			LetterSpacing: t.letterSpacing,
+			EmbeddedFont:  t.embedded,
 		}
 	}
 	if im := ln.image; im != nil {
