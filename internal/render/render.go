@@ -227,7 +227,13 @@ func paintImage(c *pdf.Content, box *layout.Box, pageH float64, ctx stylesheet.C
 		return
 	}
 	f := box.Frame
-	dw, dh, ox, oy, overflow := fitImage(im.ObjectFit, f.W, f.H, float64(im.Spec.Width), float64(im.Spec.Height))
+	dw, dh, _, _, overflow := fitImage(im.ObjectFit, f.W, f.H, float64(im.Spec.Width), float64(im.Spec.Height))
+	// objectPosition places the fitted rect in the box's free space (default
+	// center). For overflowing fits (cover/none) the free space is negative, so the
+	// fraction selects which part of the image is visible.
+	px, py := objectPositionOf(box.Style)
+	ox := (f.W - dw) * px
+	oy := (f.H - dh) * py
 	// Box bottom-left in PDF space; the fitted rect's bottom-left offsets from it.
 	x := f.X + ox
 	y := pageH - (f.Y + oy + dh)
@@ -275,6 +281,54 @@ func fitImage(fit string, bw, bh, iw, ih float64) (dw, dh, ox, oy float64, clip 
 		return bw, bh, 0, 0, false
 	}
 	return dw, dh, (bw - dw) / 2, (bh - dh) / 2, clip
+}
+
+// objectPositionOf parses objectPosition into (px,py) fractions of the box's free
+// space, where 0 is left/top and 1 is right/bottom. Defaults to center (0.5,0.5).
+// Accepts keywords (left/right/top/bottom/center) and percentages; percentages
+// fill the horizontal axis first, then the vertical (CSS order).
+func objectPositionOf(style map[string]any) (px, py float64) {
+	px, py = 0.5, 0.5
+	v := strings.TrimSpace(str(style["objectPosition"]))
+	if v == "" {
+		return
+	}
+	xSet, ySet := false, false
+	for _, tok := range strings.Fields(v) {
+		switch tok {
+		case "left":
+			px, xSet = 0, true
+		case "right":
+			px, xSet = 1, true
+		case "top":
+			py, ySet = 0, true
+		case "bottom":
+			py, ySet = 1, true
+		case "center":
+			// applies to whichever axis; default 0.5 already covers it
+		default:
+			if f, ok := percentFraction(tok); ok {
+				if !xSet {
+					px, xSet = f, true
+				} else if !ySet {
+					py, ySet = f, true
+				}
+			}
+		}
+	}
+	return px, py
+}
+
+// percentFraction parses "NN%" to NN/100.
+func percentFraction(tok string) (float64, bool) {
+	if !strings.HasSuffix(tok, "%") {
+		return 0, false
+	}
+	f, err := strconv.ParseFloat(strings.TrimSuffix(tok, "%"), 64)
+	if err != nil {
+		return 0, false
+	}
+	return f / 100, true
 }
 
 // paintText draws a Text box's content at its baseline, inset by the box's own
