@@ -12,7 +12,7 @@ import (
 func imageDrawCTM(t *testing.T, position string) string {
 	t.Helper()
 	uri := pngDataURI(t, 4, 4) // tiny, leaves free space in a 40x40 box
-	res := layoutFromJSON(t, `{"version":"feast-tree/v1","document":{"children":[
+	res := layoutFromJSON(t, `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[100,100]},"children":[
 			{"type":"IMAGE","props":{"src":"`+uri+`","style":{"width":40,"height":40,"objectFit":"none","objectPosition":"`+position+`"}}}
 		]}

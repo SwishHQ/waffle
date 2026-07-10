@@ -1,4 +1,4 @@
-// Package flexbox is feast's own flexbox layout engine — the replacement for
+// Package flexbox is waffle's own flexbox layout engine — the replacement for
 // react-pdf's Yoga binding. It computes box positions and sizes for a tree of
 // nodes following CSS flexbox semantics (the subset react-pdf documents).
 //

@@ -8,7 +8,7 @@ import (
 
 // An underlined Text strokes a decoration line after the text object (ET).
 func TestRenderTextUnderline(t *testing.T) {
-	res := layoutFromJSON(t, `{"version":"feast-tree/v1","document":{"children":[
+	res := layoutFromJSON(t, `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[200,80]},"children":[
 			{"type":"TEXT","props":{"style":{"fontSize":14,"textDecoration":"underline"}},"children":[
 				{"type":"TEXT_INSTANCE","value":"Underlined"}
@@ -35,7 +35,7 @@ func TestRenderTextUnderline(t *testing.T) {
 
 // line-through strokes a decoration too.
 func TestRenderTextLineThrough(t *testing.T) {
-	res := layoutFromJSON(t, `{"version":"feast-tree/v1","document":{"children":[
+	res := layoutFromJSON(t, `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[200,80]},"children":[
 			{"type":"TEXT","props":{"style":{"fontSize":14,"textDecoration":"line-through"}},"children":[
 				{"type":"TEXT_INSTANCE","value":"Struck"}
@@ -54,7 +54,7 @@ func TestRenderTextLineThrough(t *testing.T) {
 
 // Plain text (no decoration) strokes nothing extra.
 func TestRenderTextNoDecoration(t *testing.T) {
-	res := layoutFromJSON(t, `{"version":"feast-tree/v1","document":{"children":[
+	res := layoutFromJSON(t, `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[200,80]},"children":[
 			{"type":"TEXT","props":{"style":{"fontSize":14}},"children":[
 				{"type":"TEXT_INSTANCE","value":"Plain"}

@@ -4,14 +4,14 @@ import (
 	"encoding/json"
 	"math"
 
-	"github.com/swish/feast/internal/layout"
-	"github.com/swish/feast/internal/pdf"
-	"github.com/swish/feast/internal/stylesheet"
-	"github.com/swish/feast/internal/svgparse"
+	"github.com/swish/waffle/internal/layout"
+	"github.com/swish/waffle/internal/pdf"
+	"github.com/swish/waffle/internal/stylesheet"
+	"github.com/swish/waffle/internal/svgparse"
 )
 
 // paintCanvas replays a Canvas node's recorded painter ops. Canvas coordinates
-// are top-left origin (y-down), like the rest of feast; a CTM flips them into PDF
+// are top-left origin (y-down), like the rest of waffle; a CTM flips them into PDF
 // space. Each op is {"op": name, "args": [...]}. Text and gradients are TODO.
 func paintCanvas(c *pdf.Content, box *layout.Box, pageH float64) {
 	if len(box.Canvas) == 0 {

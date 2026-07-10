@@ -6,13 +6,13 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/swish/feast/internal/contract"
-	"github.com/swish/feast/internal/flexbox"
-	"github.com/swish/feast/internal/fontstore"
-	"github.com/swish/feast/internal/pdf"
-	"github.com/swish/feast/internal/pdf/afm"
-	"github.com/swish/feast/internal/stylesheet"
-	"github.com/swish/feast/internal/tree"
+	"github.com/swish/waffle/internal/contract"
+	"github.com/swish/waffle/internal/flexbox"
+	"github.com/swish/waffle/internal/fontstore"
+	"github.com/swish/waffle/internal/pdf"
+	"github.com/swish/waffle/internal/pdf/afm"
+	"github.com/swish/waffle/internal/stylesheet"
+	"github.com/swish/waffle/internal/tree"
 )
 
 // defaultFontSize is react-pdf's default font size in points.

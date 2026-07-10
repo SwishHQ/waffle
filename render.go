@@ -1,15 +1,15 @@
-package feast
+package waffle
 
 import (
 	"context"
 	"encoding/json"
 	"io"
 
-	"github.com/swish/feast/internal/contract"
-	"github.com/swish/feast/internal/layout"
-	"github.com/swish/feast/internal/pdf"
-	"github.com/swish/feast/internal/render"
-	"github.com/swish/feast/internal/tree"
+	"github.com/swish/waffle/internal/contract"
+	"github.com/swish/waffle/internal/layout"
+	"github.com/swish/waffle/internal/pdf"
+	"github.com/swish/waffle/internal/render"
+	"github.com/swish/waffle/internal/tree"
 )
 
 // RenderInfo reports the outcome of a render.
@@ -18,7 +18,7 @@ type RenderInfo struct {
 	Warnings  []string
 }
 
-// RenderTree renders a feast-tree/v1 document (as produced by @feast/react) to a
+// RenderTree renders a waffle-tree/v1 document (as produced by @waffle/react) to a
 // PDF written to w. It runs the full pipeline: parse the contract, build and
 // validate the element tree, lay it out, and paint it.
 //
@@ -91,10 +91,10 @@ func docOptions(root *tree.Node) pdf.Options {
 		o.EncryptAES = true
 	}
 	if o.Creator == "" {
-		o.Creator = "feast"
+		o.Creator = "waffle"
 	}
 	if o.Producer == "" {
-		o.Producer = "feast"
+		o.Producer = "waffle"
 	}
 	return o
 }

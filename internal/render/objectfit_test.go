@@ -41,7 +41,7 @@ func TestFitImage(t *testing.T) {
 // so the box keeps its non-square shape) — verified in the content stream.
 func imageObjectFitDoc(fit string) string {
 	// A tiny 100×100 square image; box 200×100.
-	return `{"version":"feast-tree/v1","document":{"children":[
+	return `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[300,300]},"children":[
 			{"type":"IMAGE","props":{"src":"__URI__","style":{"width":200,"height":100,"objectFit":"` + fit + `"}}}
 		]}

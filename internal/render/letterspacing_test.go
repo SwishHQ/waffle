@@ -8,7 +8,7 @@ import (
 
 // letterSpacing emits a Tc (character-spacing) operator with the resolved value.
 func TestRenderLetterSpacing(t *testing.T) {
-	res := layoutFromJSON(t, `{"version":"feast-tree/v1","document":{"children":[
+	res := layoutFromJSON(t, `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[300,80]},"children":[
 			{"type":"TEXT","props":{"style":{"fontSize":14,"letterSpacing":3}},"children":[
 				{"type":"TEXT_INSTANCE","value":"Spaced"}
@@ -27,7 +27,7 @@ func TestRenderLetterSpacing(t *testing.T) {
 
 // Without letterSpacing, no Tc is emitted (default character spacing is 0).
 func TestRenderNoLetterSpacing(t *testing.T) {
-	res := layoutFromJSON(t, `{"version":"feast-tree/v1","document":{"children":[
+	res := layoutFromJSON(t, `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[300,80]},"children":[
 			{"type":"TEXT","props":{"style":{"fontSize":14}},"children":[
 				{"type":"TEXT_INSTANCE","value":"Plain"}

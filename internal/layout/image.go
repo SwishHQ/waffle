@@ -4,11 +4,11 @@ import (
 	"encoding/base64"
 	"fmt"
 
-	"github.com/swish/feast/internal/contract"
-	"github.com/swish/feast/internal/flexbox"
-	"github.com/swish/feast/internal/imaging"
-	"github.com/swish/feast/internal/pdf"
-	"github.com/swish/feast/internal/tree"
+	"github.com/swish/waffle/internal/contract"
+	"github.com/swish/waffle/internal/flexbox"
+	"github.com/swish/waffle/internal/imaging"
+	"github.com/swish/waffle/internal/pdf"
+	"github.com/swish/waffle/internal/tree"
 )
 
 // imageResolve holds a decoded image ready to lay out and draw.

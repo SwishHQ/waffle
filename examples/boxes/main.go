@@ -1,6 +1,6 @@
-// Command boxes renders a small styled View tree (a feast-tree/v1 document) to
+// Command boxes renders a small styled View tree (a waffle-tree/v1 document) to
 // boxes.pdf, demonstrating the end-to-end pipeline: contract → tree → layout →
-// PDF. This is the kind of tree @feast/react produces from JSX.
+// PDF. This is the kind of tree @waffle/react produces from JSX.
 package main
 
 import (
@@ -8,13 +8,13 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/swish/feast"
+	"github.com/swish/waffle"
 )
 
 const doc = `{
-  "version": "feast-tree/v1",
+  "version": "waffle-tree/v1",
   "document": {
-    "props": { "title": "feast boxes demo" },
+    "props": { "title": "waffle boxes demo" },
     "children": [
       { "type": "PAGE",
         "props": { "size": "A6", "style": { "padding": 24, "backgroundColor": "#f1faee" } },
@@ -45,7 +45,7 @@ func main() {
 	}
 	defer f.Close()
 
-	info, err := feast.RenderTree(context.Background(), []byte(doc), f)
+	info, err := waffle.RenderTree(context.Background(), []byte(doc), f)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

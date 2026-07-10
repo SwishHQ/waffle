@@ -9,7 +9,7 @@ import (
 // An SVG rect filled with a linear gradient must clip to the shape and paint a
 // shading (sh), and the page must declare an axial /Shading resource.
 func TestRenderSVGLinearGradient(t *testing.T) {
-	doc := `{"version":"feast-tree/v1","document":{"children":[
+	doc := `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[200,200]},"children":[
 			{"type":"SVG","props":{"style":{"width":100,"height":100},"viewBox":"0 0 100 100"},"children":[
 				{"type":"DEFS","children":[
@@ -41,7 +41,7 @@ func TestRenderSVGLinearGradient(t *testing.T) {
 
 // A radial gradient uses a ShadingType 3.
 func TestRenderSVGRadialGradient(t *testing.T) {
-	doc := `{"version":"feast-tree/v1","document":{"children":[
+	doc := `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[200,200]},"children":[
 			{"type":"SVG","props":{"style":{"width":80,"height":80},"viewBox":"0 0 80 80"},"children":[
 				{"type":"DEFS","children":[
@@ -66,7 +66,7 @@ func TestRenderSVGRadialGradient(t *testing.T) {
 
 // A solid-fill SVG is unchanged: no shading, an ordinary rg fill.
 func TestRenderSVGSolidFillNoShading(t *testing.T) {
-	doc := `{"version":"feast-tree/v1","document":{"children":[
+	doc := `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[200,200]},"children":[
 			{"type":"SVG","props":{"style":{"width":100,"height":100},"viewBox":"0 0 100 100"},"children":[
 				{"type":"RECT","props":{"x":0,"y":0,"width":50,"height":50,"fill":"#00ff00"}}

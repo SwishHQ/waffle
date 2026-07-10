@@ -1,6 +1,6 @@
 package pdf
 
-import "github.com/swish/feast/internal/pdf/afm"
+import "github.com/swish/waffle/internal/pdf/afm"
 
 // MeasureText returns the advance width in points of text set in a standard font
 // at the given size, under WinAnsiEncoding. It errors if baseFont is not one of

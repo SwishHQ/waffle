@@ -10,7 +10,7 @@ import (
 // a function component, props, and .map — no React import (automatic runtime),
 // no hooks. It default-exports a function of props, run entirely in goja.
 const sampleDoc = `
-import { Document, Page, View, Text } from '@feast/react';
+import { Document, Page, View, Text } from '@waffle/react';
 
 function Badge({ label }) {
   return <Text style={{ fontSize: 11 }}>{label}</Text>;
@@ -18,7 +18,7 @@ function Badge({ label }) {
 
 export default function App(props) {
   return (
-    <Document title={props.title} author="feast">
+    <Document title={props.title} author="waffle">
       <Page size="A6" style={{ padding: 24 }}>
         <Text style={{ fontSize: 22 }}>Hello {props.name}</Text>
         <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -57,14 +57,14 @@ func TestCompileAndRender(t *testing.T) {
 		t.Fatalf("tree is not valid JSON: %v\n%s", err, treeJSON)
 	}
 
-	if tree.Version != "feast-tree/v1" {
-		t.Errorf("version = %q, want feast-tree/v1", tree.Version)
+	if tree.Version != "waffle-tree/v1" {
+		t.Errorf("version = %q, want waffle-tree/v1", tree.Version)
 	}
 	if got := tree.Document.Props["title"]; got != "goja doc" {
 		t.Errorf("document title = %v, want %q (props threaded through goja)", got, "goja doc")
 	}
-	if got := tree.Document.Props["author"]; got != "feast" {
-		t.Errorf("document author = %v, want feast", got)
+	if got := tree.Document.Props["author"]; got != "waffle" {
+		t.Errorf("document author = %v, want waffle", got)
 	}
 	if len(tree.Document.Children) != 1 || tree.Document.Children[0]["type"] != "PAGE" {
 		t.Fatalf("expected one PAGE child, got %+v", tree.Document.Children)
@@ -85,7 +85,7 @@ func TestCompileAndRender(t *testing.T) {
 // A bare element default export (not a function) must also work.
 func TestCompileElementDefault(t *testing.T) {
 	const doc = `
-import { Document, Page, Text } from '@feast/react';
+import { Document, Page, Text } from '@waffle/react';
 export default (
   <Document title="static">
     <Page><Text>hi</Text></Page>
@@ -108,7 +108,7 @@ export default (
 // A non-Document root must produce a clear error from the serializer.
 func TestRenderRejectsNonDocumentRoot(t *testing.T) {
 	const doc = `
-import { View } from '@feast/react';
+import { View } from '@waffle/react';
 export default <View />;
 `
 	prog, err := Compile([]byte(doc), Options{})

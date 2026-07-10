@@ -5,8 +5,8 @@ import (
 
 	"github.com/go-text/typesetting/font"
 
-	"github.com/swish/feast/internal/pdf"
-	"github.com/swish/feast/internal/pdf/afm"
+	"github.com/swish/waffle/internal/pdf"
+	"github.com/swish/waffle/internal/pdf/afm"
 )
 
 // Descriptor holds the metrics a PDF FontDescriptor needs for an embedded font,

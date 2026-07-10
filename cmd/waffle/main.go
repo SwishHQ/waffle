@@ -1,15 +1,15 @@
-// Command feast renders a React document to a PDF.
+// Command waffle renders a React document to a PDF.
 //
 // Usage:
 //
-//	feast <input> <out.pdf> [props.json]
+//	waffle <input> <out.pdf> [props.json]
 //
 // The input may be:
 //
 //   - a JSX/TSX React source (.jsx/.tsx/.js/.mjs) — transpiled and executed
 //     in-process on the goja JS engine (no Node.js required). An optional
 //     props.json is passed to the document's default-exported function.
-//   - a feast-tree/v1 JSON document (.json) — the pre-serialized element tree,
+//   - a waffle-tree/v1 JSON document (.json) — the pre-serialized element tree,
 //     rendered directly.
 //
 // Either way the Go engine lays it out and paints the PDF: author in React,
@@ -24,12 +24,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/swish/feast"
+	"github.com/swish/waffle"
 )
 
 func main() {
 	if len(os.Args) < 3 || len(os.Args) > 4 {
-		fmt.Fprintln(os.Stderr, "usage: feast <input.(jsx|tsx|json)> <out.pdf> [props.json]")
+		fmt.Fprintln(os.Stderr, "usage: waffle <input.(jsx|tsx|json)> <out.pdf> [props.json]")
 		os.Exit(2)
 	}
 	in, outPath := os.Args[1], os.Args[2]
@@ -45,17 +45,17 @@ func main() {
 	defer out.Close()
 
 	ctx := context.Background()
-	var info *feast.RenderInfo
+	var info *waffle.RenderInfo
 
 	switch ext := strings.ToLower(filepath.Ext(in)); ext {
 	case ".json":
-		info, err = feast.RenderTree(ctx, data, out)
+		info, err = waffle.RenderTree(ctx, data, out)
 	case ".jsx", ".tsx", ".js", ".mjs":
 		props, perr := loadProps()
 		if perr != nil {
 			fatal(perr)
 		}
-		tmpl, terr := feast.LoadTemplate(data, feast.TemplateOptions{
+		tmpl, terr := waffle.LoadTemplate(data, waffle.TemplateOptions{
 			TypeScript: ext == ".tsx",
 			Filename:   filepath.Base(in),
 		})
@@ -93,6 +93,6 @@ func loadProps() (any, error) {
 }
 
 func fatal(err error) {
-	fmt.Fprintln(os.Stderr, "feast:", err)
+	fmt.Fprintln(os.Stderr, "waffle:", err)
 	os.Exit(1)
 }

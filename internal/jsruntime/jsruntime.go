@@ -1,13 +1,13 @@
-// Package jsruntime is feast's in-process JavaScript engine: it transpiles a
+// Package jsruntime is waffle's in-process JavaScript engine: it transpiles a
 // user's JSX/TSX React document and runs it entirely inside the Go process to
-// produce a feast-tree/v1 JSON document — no Node.js at render time.
+// produce a waffle-tree/v1 JSON document — no Node.js at render time.
 //
 // The pipeline is pure Go end to end:
 //
 //	esbuild (github.com/evanw/esbuild)  — transpile JSX/TSX + bundle, in memory
 //	goja    (github.com/dop251/goja)    — execute the bundled React program
 //
-// React itself (react.production.min.js) and the @feast/react runtime are
+// React itself (react.production.min.js) and the @waffle/react runtime are
 // embedded and resolved by an esbuild plugin from strings, so nothing is read
 // from disk or node_modules. goja is the single JS engine; there is no sidecar.
 package jsruntime
@@ -25,8 +25,8 @@ import (
 //go:embed assets/react.production.min.js
 var reactUMD string
 
-//go:embed assets/feast-react.js
-var feastRuntime string
+//go:embed assets/waffle-react.js
+var waffleRuntime string
 
 // jsxRuntime is a tiny automatic-JSX-runtime shim so user files need no React
 // import: esbuild rewrites <X/> to jsx(X, props) importing from "react/jsx-runtime".
@@ -48,9 +48,9 @@ export const Fragment = React.Fragment;
 // so it is invoked *inside* serialize()'s render pass, where the hooks
 // dispatcher is installed — otherwise hooks in the top-level component would run
 // with no dispatcher and throw.
-const entry = `import UserDefault from 'feast:user';
+const entry = `import UserDefault from 'waffle:user';
 import React from 'react';
-import { serializeString, evalCallbackString, evalPaintString } from '@feast/react';
+import { serializeString, evalCallbackString, evalPaintString } from '@waffle/react';
 export function render(propsJSON){
   var props = propsJSON ? JSON.parse(propsJSON) : {};
   var el = (typeof UserDefault === 'function') ? React.createElement(UserDefault, props) : UserDefault;
@@ -101,7 +101,7 @@ func Compile(source []byte, opts Options) (*Program, error) {
 }
 
 // Render executes the program on a fresh VM with the given props (already
-// JSON-encoded; pass nil for none) and returns the feast-tree/v1 JSON. It is a
+// JSON-encoded; pass nil for none) and returns the waffle-tree/v1 JSON. It is a
 // one-shot convenience over Instantiate for documents with no render callbacks.
 func (p *Program) Render(propsJSON []byte) ([]byte, error) {
 	inst, err := p.Instantiate(propsJSON)
@@ -116,13 +116,13 @@ func (p *Program) Render(propsJSON []byte) ([]byte, error) {
 // evaluated per page via EvalCallback. It is NOT safe for concurrent use — the
 // underlying goja VM is single-threaded — but layout/pagination is sequential.
 type Instance struct {
-	vm       *goja.Runtime
-	feastObj *goja.Object // the __feast object
-	tree     []byte
+	vm        *goja.Runtime
+	waffleObj *goja.Object // the __waffle object
+	tree      []byte
 }
 
 // Instantiate runs the program with props and returns a live Instance whose
-// Tree() is the feast-tree/v1 JSON.
+// Tree() is the waffle-tree/v1 JSON.
 func (p *Program) Instantiate(propsJSON []byte) (inst *Instance, err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -134,14 +134,14 @@ func (p *Program) Instantiate(propsJSON []byte) (inst *Instance, err error) {
 	if _, err = vm.RunProgram(p.prog); err != nil {
 		return nil, fmt.Errorf("jsruntime: run program: %w", jsErr(err))
 	}
-	global := vm.Get("__feast")
+	global := vm.Get("__waffle")
 	if global == nil || goja.IsUndefined(global) {
-		return nil, fmt.Errorf("jsruntime: bundle did not expose __feast global")
+		return nil, fmt.Errorf("jsruntime: bundle did not expose __waffle global")
 	}
 	obj := global.ToObject(vm)
 	renderFn, ok := goja.AssertFunction(obj.Get("render"))
 	if !ok {
-		return nil, fmt.Errorf("jsruntime: __feast.render is not a function")
+		return nil, fmt.Errorf("jsruntime: __waffle.render is not a function")
 	}
 	arg := goja.Undefined()
 	if len(propsJSON) > 0 {
@@ -151,14 +151,14 @@ func (p *Program) Instantiate(propsJSON []byte) (inst *Instance, err error) {
 	if err != nil {
 		return nil, fmt.Errorf("jsruntime: evaluate document: %w", jsErr(err))
 	}
-	return &Instance{vm: vm, feastObj: obj, tree: []byte(res.String())}, nil
+	return &Instance{vm: vm, waffleObj: obj, tree: []byte(res.String())}, nil
 }
 
-// Tree returns the rendered feast-tree/v1 JSON.
+// Tree returns the rendered waffle-tree/v1 JSON.
 func (i *Instance) Tree() []byte { return i.tree }
 
 // EvalCallback evaluates the render-prop callback id with ctxJSON (the page
-// context: pageNumber, totalPages, …) and returns a JSON array of feast-tree
+// context: pageNumber, totalPages, …) and returns a JSON array of waffle-tree
 // nodes produced by the callback.
 func (i *Instance) EvalCallback(id string, ctxJSON []byte) (nodes []byte, err error) {
 	defer func() {
@@ -166,9 +166,9 @@ func (i *Instance) EvalCallback(id string, ctxJSON []byte) (nodes []byte, err er
 			err = fmt.Errorf("jsruntime: panic during callback %q: %v", id, r)
 		}
 	}()
-	fn, ok := goja.AssertFunction(i.feastObj.Get("evalCallback"))
+	fn, ok := goja.AssertFunction(i.waffleObj.Get("evalCallback"))
 	if !ok {
-		return nil, fmt.Errorf("jsruntime: __feast.evalCallback is not a function")
+		return nil, fmt.Errorf("jsruntime: __waffle.evalCallback is not a function")
 	}
 	ctxArg := goja.Undefined()
 	if len(ctxJSON) > 0 {
@@ -189,9 +189,9 @@ func (i *Instance) EvalPaint(id string, w, h float64) (ops []byte, err error) {
 			err = fmt.Errorf("jsruntime: panic during paint %q: %v", id, r)
 		}
 	}()
-	fn, ok := goja.AssertFunction(i.feastObj.Get("evalPaint"))
+	fn, ok := goja.AssertFunction(i.waffleObj.Get("evalPaint"))
 	if !ok {
-		return nil, fmt.Errorf("jsruntime: __feast.evalPaint is not a function")
+		return nil, fmt.Errorf("jsruntime: __waffle.evalPaint is not a function")
 	}
 	res, err := fn(goja.Undefined(), i.vm.ToValue(id), i.vm.ToValue(w), i.vm.ToValue(h))
 	if err != nil {
@@ -203,8 +203,8 @@ func (i *Instance) EvalPaint(id string, w, h float64) (ops []byte, err error) {
 // BundledSource returns the transpiled+bundled JS (for debugging/tests).
 func (p *Program) BundledSource() string { return p.src }
 
-// bundle transpiles the user source and bundles it with React + @feast/react
-// into a single IIFE that assigns `var __feast = { render }`. Everything is
+// bundle transpiles the user source and bundles it with React + @waffle/react
+// into a single IIFE that assigns `var __waffle = { render }`. Everything is
 // resolved from embedded strings via a plugin: no disk or node_modules access.
 func bundle(source []byte, opts Options) ([]byte, error) {
 	userLoader := api.LoaderJSX
@@ -214,15 +214,15 @@ func bundle(source []byte, opts Options) ([]byte, error) {
 	userSrc := string(source)
 
 	plugin := api.Plugin{
-		Name: "feast",
+		Name: "waffle",
 		Setup: func(b api.PluginBuild) {
 			b.OnResolve(api.OnResolveOptions{
-				Filter: `^(react|react/jsx-runtime|react/jsx-dev-runtime|@feast/react|feast:user)$`,
+				Filter: `^(react|react/jsx-runtime|react/jsx-dev-runtime|@waffle/react|waffle:user)$`,
 			}, func(a api.OnResolveArgs) (api.OnResolveResult, error) {
-				return api.OnResolveResult{Path: a.Path, Namespace: "feast"}, nil
+				return api.OnResolveResult{Path: a.Path, Namespace: "waffle"}, nil
 			})
 			b.OnLoad(api.OnLoadOptions{
-				Filter: `.*`, Namespace: "feast",
+				Filter: `.*`, Namespace: "waffle",
 			}, func(a api.OnLoadArgs) (api.OnLoadResult, error) {
 				var contents string
 				loader := api.LoaderJS
@@ -231,9 +231,9 @@ func bundle(source []byte, opts Options) ([]byte, error) {
 					contents = reactUMD
 				case "react/jsx-runtime", "react/jsx-dev-runtime":
 					contents = jsxRuntime
-				case "@feast/react":
-					contents = feastRuntime
-				case "feast:user":
+				case "@waffle/react":
+					contents = waffleRuntime
+				case "waffle:user":
 					contents, loader = userSrc, userLoader
 				default:
 					return api.OnLoadResult{}, fmt.Errorf("jsruntime: cannot resolve %q", a.Path)
@@ -246,14 +246,14 @@ func bundle(source []byte, opts Options) ([]byte, error) {
 	result := api.Build(api.BuildOptions{
 		Stdin: &api.StdinOptions{
 			Contents:   entry,
-			Sourcefile: "feast-entry.js",
+			Sourcefile: "waffle-entry.js",
 			ResolveDir: "/",
 			Loader:     api.LoaderJS,
 		},
 		Bundle:          true,
 		Write:           false,
 		Format:          api.FormatIIFE,
-		GlobalName:      "__feast",
+		GlobalName:      "__waffle",
 		Target:          api.ES2015,
 		Platform:        api.PlatformNeutral,
 		JSX:             api.JSXAutomatic,

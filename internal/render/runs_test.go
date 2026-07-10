@@ -10,7 +10,7 @@ import (
 // PDF carries both Helvetica and Helvetica-Bold, and the bold word is red while
 // the surrounding text is black.
 func TestRenderInlineRuns(t *testing.T) {
-	doc := `{"version":"feast-tree/v1","document":{"children":[
+	doc := `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[300,100]},"children":[
 			{"type":"TEXT","props":{"style":{"fontSize":12}},"children":[
 				{"type":"TEXT_INSTANCE","value":"Hello "},
@@ -50,7 +50,7 @@ func TestRenderInlineRuns(t *testing.T) {
 
 // An underlined nested run strokes a decoration line; the surrounding text does not.
 func TestRenderInlineRunUnderline(t *testing.T) {
-	doc := `{"version":"feast-tree/v1","document":{"children":[
+	doc := `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[300,100]},"children":[
 			{"type":"TEXT","props":{"style":{"fontSize":12}},"children":[
 				{"type":"TEXT_INSTANCE","value":"plain "},

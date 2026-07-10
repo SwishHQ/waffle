@@ -25,8 +25,8 @@ func buildHello(t *testing.T) []byte {
 
 	doc := New(Options{
 		Title:        "Hello",
-		Creator:      "feast",
-		Producer:     "feast",
+		Creator:      "waffle",
+		Producer:     "waffle",
 		PDFVersion:   "1.4",
 		CreationDate: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 	})
@@ -93,13 +93,13 @@ func parseStartxref(t *testing.T, data []byte) int {
 }
 
 // TestHelloGolden compares against a committed byte-exact golden. The content
-// stream is Flate-compressed, so regenerate with FEAST_UPDATE=1 after a Go
+// stream is Flate-compressed, so regenerate with WAFFLE_UPDATE=1 after a Go
 // toolchain change if this fails for that reason.
 func TestHelloGolden(t *testing.T) {
 	golden := filepath.Join("testdata", "hello.golden.pdf")
 	data := buildHello(t)
 
-	if os.Getenv("FEAST_UPDATE") == "1" {
+	if os.Getenv("WAFFLE_UPDATE") == "1" {
 		if err := os.MkdirAll(filepath.Dir(golden), 0o755); err != nil {
 			t.Fatal(err)
 		}
@@ -112,7 +112,7 @@ func TestHelloGolden(t *testing.T) {
 
 	want, err := os.ReadFile(golden)
 	if err != nil {
-		t.Fatalf("read golden (run with FEAST_UPDATE=1 to create): %v", err)
+		t.Fatalf("read golden (run with WAFFLE_UPDATE=1 to create): %v", err)
 	}
 	if !bytes.Equal(want, data) {
 		bad := filepath.Join(t.TempDir(), "hello.actual.pdf")

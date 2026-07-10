@@ -47,7 +47,7 @@ minPresenceAhead, orphans/widows.
   `subPageNumber` (==pageNumber for now).
 
 **Phase 5 is complete for static content.** The engine now renders paginated,
-text-flowing, header/footer documents from feast-tree JSON.
+text-flowing, header/footer documents from waffle-tree JSON.
 
 ## Next — remaining engine, then the React front-end
 
@@ -55,6 +55,6 @@ text-flowing, header/footer documents from feast-tree JSON.
    (decode → flate, alpha → SMask); Image XObjects in `internal/pdf`; wire into
    layout (objectFit) + render. Self-contained, high-value.
 2. **Phase 6/7 — SVG parser + render, Canvas** (self-contained leaf work).
-3. **The React front-end** — Phase R1 goja spike + `@feast/react` npm package.
+3. **The React front-end** — Phase R1 goja spike + `@waffle/react` npm package.
    The largest remaining chunk and the plan's gated milestone; **flag to the user
    before starting** (stands up the JS toolchain, React-on-goja risk).

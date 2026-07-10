@@ -19,7 +19,7 @@ import (
 // Supported functions: translate/translateX/translateY, scale/scaleX/scaleY,
 // rotate, skew/skewX/skewY, and matrix(a,b,c,d,e,f). Function names are matched
 // case-insensitively. Lengths accept px, pt, or a bare number, all treated as
-// PDF points (at feast's default 72 dpi, 1px == 1pt); percentages are NOT
+// PDF points (at waffle's default 72 dpi, 1px == 1pt); percentages are NOT
 // supported and produce an error. Angles accept deg (the default for a bare
 // number), rad, grad, and turn.
 //

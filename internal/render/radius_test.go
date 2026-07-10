@@ -31,7 +31,7 @@ func TestClampRadii(t *testing.T) {
 }
 
 func radiusDoc(radius string) string {
-	return `{"version":"feast-tree/v1","document":{"children":[
+	return `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[200,200]},"children":[
 			{"type":"VIEW","props":{"style":{"width":100,"height":60,"backgroundColor":"#3366cc","borderRadius":` + radius + `}}}
 		]}
@@ -68,7 +68,7 @@ func TestRenderSharpBackgroundNoCurves(t *testing.T) {
 // A percent radius resolves against the box's min dimension (so 50% on a square
 // yields a circle) — verified by the presence of curves.
 func TestRenderPercentRadius(t *testing.T) {
-	doc := `{"version":"feast-tree/v1","document":{"children":[
+	doc := `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[200,200]},"children":[
 			{"type":"VIEW","props":{"style":{"width":80,"height":80,"backgroundColor":"#e63946","borderRadius":"50%"}}}
 		]}
@@ -86,7 +86,7 @@ func TestRenderPercentRadius(t *testing.T) {
 // A rounded image clips its draw to the rounded path.
 func TestRenderRoundedImageClips(t *testing.T) {
 	uri := pngDataURI(t, 40, 40)
-	doc := `{"version":"feast-tree/v1","document":{"children":[
+	doc := `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[200,200]},"children":[
 			{"type":"IMAGE","props":{"src":"` + uri + `","style":{"width":40,"height":40,"borderRadius":20}}}
 		]}
@@ -110,7 +110,7 @@ func TestRenderRoundedImageClips(t *testing.T) {
 
 // A rounded + uniform border strokes a single rounded path.
 func TestRenderRoundedUniformBorder(t *testing.T) {
-	doc := `{"version":"feast-tree/v1","document":{"children":[
+	doc := `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[200,200]},"children":[
 			{"type":"VIEW","props":{"style":{"width":100,"height":60,"borderRadius":10,"border":"2pt solid #1d3557"}}}
 		]}

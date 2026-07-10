@@ -9,7 +9,7 @@ import (
 // textIndent pushes only the first wrapped line to the right; later lines start
 // at the paragraph edge.
 func TestRenderTextIndent(t *testing.T) {
-	doc := `{"version":"feast-tree/v1","document":{"children":[
+	doc := `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[200,120]},"children":[
 			{"type":"TEXT","props":{"style":{"fontSize":12,"width":150,"textIndent":20}},"children":[
 				{"type":"TEXT_INSTANCE","value":"one two three four five six seven eight nine ten eleven twelve"}
@@ -33,7 +33,7 @@ func TestRenderTextIndent(t *testing.T) {
 
 // Without textIndent, every line starts at x=0.
 func TestRenderNoTextIndent(t *testing.T) {
-	doc := `{"version":"feast-tree/v1","document":{"children":[
+	doc := `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[200,120]},"children":[
 			{"type":"TEXT","props":{"style":{"fontSize":12,"width":150}},"children":[
 				{"type":"TEXT_INSTANCE","value":"one two three four five six seven eight nine ten eleven"}

@@ -4,10 +4,10 @@ Running log; updated per work chunk.
 
 ## Done
 
-- **`internal/contract` — feast-tree/v1 parser.** Wire types (`Tree`, `Document`,
+- **`internal/contract` — waffle-tree/v1 parser.** Wire types (`Tree`, `Document`,
   `Node`, `FontRegistration`/`FontFace`, `EmojiSource`), node-type constants
   mirroring react-pdf primitives, and `Parse([]byte)`:
-  - Version gating: accepts `feast-tree/v1` and minor `v1.x` (forward-compatible),
+  - Version gating: accepts `waffle-tree/v1` and minor `v1.x` (forward-compatible),
     rejects other majors and missing/garbage versions.
   - `$cb` → `CallbackRef`, `$inline` → `InlineAsset`, resolved recursively through
     props/maps/slices. Numbers preserved as `json.Number` (exact style values).
@@ -70,7 +70,7 @@ Running log; updated per work chunk.
 The user switched the loop to run **until the library is built**, resolving the
 earlier pause points — I now drive the critical path and make the architectural
 calls myself (documenting each). The flexbox decision above is the first of
-these. The R1 JS-runtime spike + `@feast/react` npm package remain later phases.
+these. The R1 JS-runtime spike + `@waffle/react` npm package remain later phases.
 
 - **`internal/layout` — the layout pipeline.** Page-size resolution (named
   subset + numeric/array/object + orientation swap), per-node style
@@ -80,10 +80,10 @@ these. The R1 JS-runtime spike + `@feast/react` npm package remain later phases.
   the text phase). Tested end-to-end contract→tree→layout: padding/fixed child,
   row flex-grow, named/oriented page size, in→pt margins, multi-page.
 
-- **`internal/render` + `feast.RenderTree` — the first end-to-end PDF. ✅
+- **`internal/render` + `waffle.RenderTree` — the first end-to-end PDF. ✅
   MILESTONE.** Paints the `layout.Box` tree (background fills, per-side borders
   with color/current-color fallback, Y-flip to PDF coordinates) through the
-  Phase 1 writer. `feast.RenderTree(ctx, treeJSON, w)` runs the whole pipeline
+  Phase 1 writer. `waffle.RenderTree(ctx, treeJSON, w)` runs the whole pipeline
   (contract → tree → layout → render → PDF) and wires Document props →
   PDF metadata (title/author/pdfVersion/lang/pageMode/pageLayout). Verified: the
   `examples/boxes` demo and the end-to-end test render a styled View tree to a
@@ -111,7 +111,7 @@ renders to a real PDF. 8 Go packages, all green.
    funcs, with Type0 subset embedding in `internal/pdf`. This unblocks real
    documents (text is most of any PDF).
 3. **Phase 5 — pagination**; then images/SVG/canvas; then the R1 JS-runtime spike
-   + `@feast/react` npm package.
+   + `@waffle/react` npm package.
 
 ## PAUSE for user visibility before
 

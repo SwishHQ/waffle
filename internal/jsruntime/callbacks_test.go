@@ -10,7 +10,7 @@ import (
 // through the live VM — proves the callback bridge round-trips under goja.
 func TestGojaRenderCallbackBridge(t *testing.T) {
 	const doc = `
-import { Document, Page, Text } from '@feast/react';
+import { Document, Page, Text } from '@waffle/react';
 export default function App() {
   return (
     <Document>
@@ -75,7 +75,7 @@ export default function App() {
 // A callback returning an element (not a string) serializes to a node subtree.
 func TestGojaRenderCallbackElement(t *testing.T) {
 	const doc = `
-import { Document, Page, View, Text } from '@feast/react';
+import { Document, Page, View, Text } from '@waffle/react';
 export default function App() {
   return (
     <Document>
@@ -108,7 +108,7 @@ export default function App() {
 // size, return the recorded painter ops in the Go replayer's {op,args} format.
 func TestGojaCanvasPaintBridge(t *testing.T) {
 	const doc = `
-import { Document, Page, Canvas } from '@feast/react';
+import { Document, Page, Canvas } from '@waffle/react';
 export default function App() {
   return (
     <Document>

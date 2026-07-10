@@ -4,10 +4,10 @@ import (
 	"encoding/base64"
 	"fmt"
 
-	"github.com/swish/feast/internal/contract"
-	"github.com/swish/feast/internal/fetch"
-	"github.com/swish/feast/internal/fontstore"
-	"github.com/swish/feast/internal/stylesheet"
+	"github.com/swish/waffle/internal/contract"
+	"github.com/swish/waffle/internal/fetch"
+	"github.com/swish/waffle/internal/fontstore"
+	"github.com/swish/waffle/internal/stylesheet"
 )
 
 // buildFontStore registers all Font.register faces into a fontstore.Store for

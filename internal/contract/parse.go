@@ -8,9 +8,9 @@ import (
 	"strings"
 )
 
-const majorPrefix = "feast-tree/v"
+const majorPrefix = "waffle-tree/v"
 
-// Parse decodes a feast-tree/v1 document. Numbers are preserved as json.Number
+// Parse decodes a waffle-tree/v1 document. Numbers are preserved as json.Number
 // so downstream style parsing sees exact values. Unknown node types and props
 // are tolerated and surfaced as warnings rather than errors, so a newer producer
 // degrades gracefully against an older engine.

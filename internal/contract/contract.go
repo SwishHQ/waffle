@@ -1,5 +1,5 @@
-// Package contract defines feast-tree/v1: the versioned JSON boundary between
-// the React authoring layer (@feast/react) and the Go rendering engine. It
+// Package contract defines waffle-tree/v1: the versioned JSON boundary between
+// the React authoring layer (@waffle/react) and the Go rendering engine. It
 // parses the wire format into a lightly-typed node tree, leaving interpretation
 // of styles, units, and props to downstream subsystems (the stylesheet and
 // layout engines), exactly as react-pdf keeps its node tree uninterpreted until
@@ -7,7 +7,7 @@
 package contract
 
 // Version is the contract version this build implements.
-const Version = "feast-tree/v1"
+const Version = "waffle-tree/v1"
 
 // Node type strings mirror react-pdf's primitive constants so the reconciler is
 // a near pass-through and react-pdf's component docs describe this contract.
@@ -95,7 +95,7 @@ type FontFace struct {
 	FontStyle  string
 }
 
-// FontRegistration mirrors a Font.register call from @feast/react.
+// FontRegistration mirrors a Font.register call from @waffle/react.
 type FontRegistration struct {
 	Family string
 	Faces  []FontFace
@@ -117,7 +117,7 @@ type Document struct {
 	Children            []*Node
 }
 
-// Tree is a parsed feast-tree document.
+// Tree is a parsed waffle-tree document.
 type Tree struct {
 	Version   string
 	Document  *Document

@@ -7,7 +7,7 @@ import (
 )
 
 func TestRenderOpacity(t *testing.T) {
-	doc := `{"version":"feast-tree/v1","document":{"children":[
+	doc := `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[100,100]},"children":[
 			{"type":"VIEW","props":{"style":{"width":50,"height":50,"backgroundColor":"#ff0000","opacity":0.5}}}
 		]}
@@ -31,7 +31,7 @@ func TestRenderOpacity(t *testing.T) {
 
 // Nested opacity multiplies (CSS semantics): child 0.4 inside parent 0.5 → 0.2.
 func TestRenderNestedOpacityMultiplies(t *testing.T) {
-	doc := `{"version":"feast-tree/v1","document":{"children":[
+	doc := `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[100,100]},"children":[
 			{"type":"VIEW","props":{"style":{"opacity":0.5}},"children":[
 				{"type":"VIEW","props":{"style":{"width":30,"height":30,"backgroundColor":"#0000ff","opacity":0.4}}}
@@ -59,7 +59,7 @@ func TestRenderNestedOpacityMultiplies(t *testing.T) {
 
 // A fully opaque box (opacity 1 or absent) must not emit any ExtGState.
 func TestRenderNoOpacityNoExtGState(t *testing.T) {
-	doc := `{"version":"feast-tree/v1","document":{"children":[
+	doc := `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[100,100]},"children":[
 			{"type":"VIEW","props":{"style":{"width":50,"height":50,"backgroundColor":"#ff0000"}}}
 		]}

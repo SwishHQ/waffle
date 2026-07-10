@@ -8,7 +8,7 @@ import (
 
 // A dashed border strokes a dashed line (d operator) rather than filling a strip.
 func TestRenderDashedBorder(t *testing.T) {
-	doc := `{"version":"feast-tree/v1","document":{"children":[
+	doc := `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[100,100]},"children":[
 			{"type":"VIEW","props":{"style":{"width":60,"height":60,"borderWidth":3,"borderStyle":"dashed","borderColor":"#000000"}}}
 		]}
@@ -33,7 +33,7 @@ func TestRenderDashedBorder(t *testing.T) {
 // A dotted border uses round caps (1 J) and a zero-length dash so each on-segment
 // renders as a dot.
 func TestRenderDottedBorder(t *testing.T) {
-	doc := `{"version":"feast-tree/v1","document":{"children":[
+	doc := `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[100,100]},"children":[
 			{"type":"VIEW","props":{"style":{"width":60,"height":60,"borderWidth":2,"borderStyle":"dotted","borderColor":"#0000ff"}}}
 		]}
@@ -54,7 +54,7 @@ func TestRenderDottedBorder(t *testing.T) {
 
 // A solid border (default) still fills a strip and emits no dash.
 func TestRenderSolidBorderNoDash(t *testing.T) {
-	doc := `{"version":"feast-tree/v1","document":{"children":[
+	doc := `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[100,100]},"children":[
 			{"type":"VIEW","props":{"style":{"width":60,"height":60,"borderWidth":3,"borderColor":"#000000"}}}
 		]}
@@ -75,7 +75,7 @@ func TestRenderSolidBorderNoDash(t *testing.T) {
 
 // A rounded, dashed, uniform border strokes a rounded path with a dash pattern.
 func TestRenderRoundedDashedBorder(t *testing.T) {
-	doc := `{"version":"feast-tree/v1","document":{"children":[
+	doc := `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[100,100]},"children":[
 			{"type":"VIEW","props":{"style":{"width":60,"height":60,"borderWidth":2,"borderStyle":"dashed","borderColor":"#000000","borderRadius":10}}}
 		]}

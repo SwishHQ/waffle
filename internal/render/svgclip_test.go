@@ -9,7 +9,7 @@ import (
 // A shape referencing clip-path="url(#id)" clips to the ClipPath's shapes: the
 // content stream emits the clip path (W n) before painting the shape.
 func TestRenderSVGClipPath(t *testing.T) {
-	doc := `{"version":"feast-tree/v1","document":{"children":[
+	doc := `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[200,200]},"children":[
 			{"type":"SVG","props":{"style":{"width":100,"height":100},"viewBox":"0 0 100 100"},"children":[
 				{"type":"DEFS","children":[
@@ -40,7 +40,7 @@ func TestRenderSVGClipPath(t *testing.T) {
 
 // A shape without clip-path is unaffected (no clip emitted around it).
 func TestRenderSVGNoClipPath(t *testing.T) {
-	doc := `{"version":"feast-tree/v1","document":{"children":[
+	doc := `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[200,200]},"children":[
 			{"type":"SVG","props":{"style":{"width":100,"height":100},"viewBox":"0 0 100 100"},"children":[
 				{"type":"RECT","props":{"x":0,"y":0,"width":50,"height":50,"fill":"#00ff00"}}

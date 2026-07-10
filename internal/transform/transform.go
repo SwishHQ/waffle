@@ -15,7 +15,7 @@
 //	                      | C D 0 |
 //	                      | E F 1 |
 //
-// Coordinate space. feast's layout space is y-DOWN (origin top-left, like CSS
+// Coordinate space. waffle's layout space is y-DOWN (origin top-left, like CSS
 // and the screen). All matrices here operate in that y-down space; the renderer
 // applies them BEFORE its own y-flip into PDF's y-up page space. Rotate is
 // defined so a positive angle rotates CLOCKWISE as seen on screen, matching the
@@ -64,7 +64,7 @@ func Translate(tx, ty float64) Matrix { return Matrix{A: 1, B: 0, C: 0, D: 1, E:
 // Scale returns a scale by sx horizontally and sy vertically.
 func Scale(sx, sy float64) Matrix { return Matrix{A: sx, B: 0, C: 0, D: sy, E: 0, F: 0} }
 
-// Rotate returns a rotation by deg degrees. In feast's y-down space a positive
+// Rotate returns a rotation by deg degrees. In waffle's y-down space a positive
 // angle rotates CLOCKWISE as seen on screen, matching CSS `rotate()`. The matrix
 // uses the standard trigonometric form
 //

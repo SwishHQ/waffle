@@ -8,7 +8,7 @@ import (
 
 // A <Note> element produces a text (sticky-note) annotation carrying its text.
 func TestRenderNote(t *testing.T) {
-	doc := `{"version":"feast-tree/v1","document":{"children":[
+	doc := `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[200,200]},"children":[
 			{"type":"NOTE","props":{"style":{"position":"absolute","top":20,"left":30}},"children":[
 				{"type":"TEXT_INSTANCE","value":"Check this figure"}
@@ -30,7 +30,7 @@ func TestRenderNote(t *testing.T) {
 
 // No <Note> => no text annotation.
 func TestRenderNoNote(t *testing.T) {
-	doc := `{"version":"feast-tree/v1","document":{"children":[
+	doc := `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[100,100]},"children":[
 			{"type":"VIEW","props":{"style":{"height":10}}}
 		]}

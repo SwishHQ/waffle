@@ -1,5 +1,5 @@
 // This example renders a React-authored invoice to a PDF with data supplied
-// from Go — the whole point of feast: author in React, drive it with Go data,
+// from Go — the whole point of waffle: author in React, drive it with Go data,
 // render in-process on goja with no Node.js.
 //
 //	go run ./examples/react   # writes invoice.pdf
@@ -12,7 +12,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/swish/feast"
+	"github.com/swish/waffle"
 )
 
 //go:embed invoice.jsx
@@ -27,7 +27,7 @@ type item struct {
 
 func main() {
 	// Compile the React template once; render it with Go-supplied props.
-	tmpl, err := feast.LoadTemplate(invoiceJSX, feast.TemplateOptions{Filename: "invoice.jsx"})
+	tmpl, err := waffle.LoadTemplate(invoiceJSX, waffle.TemplateOptions{Filename: "invoice.jsx"})
 	if err != nil {
 		log.Fatal(err)
 	}

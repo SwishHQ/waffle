@@ -1,4 +1,4 @@
-package feast
+package waffle
 
 import (
 	"context"
@@ -7,9 +7,9 @@ import (
 	"io"
 	"strings"
 
-	"github.com/swish/feast/internal/contract"
-	"github.com/swish/feast/internal/jsruntime"
-	"github.com/swish/feast/internal/layout"
+	"github.com/swish/waffle/internal/contract"
+	"github.com/swish/waffle/internal/jsruntime"
+	"github.com/swish/waffle/internal/layout"
 )
 
 // TemplateOptions configures how a React source is compiled into a Template.
@@ -25,7 +25,7 @@ type TemplateOptions struct {
 // The source is a JSX/TSX module whose default export is either a <Document>
 // element or a function of props returning one, exactly as react-pdf documents
 // are authored. It is transpiled (esbuild) and executed (goja) entirely inside
-// the Go process — feast needs no Node.js at render time. A Template is safe to
+// the Go process — waffle needs no Node.js at render time. A Template is safe to
 // Render repeatedly, including concurrently: each Render runs on its own VM.
 type Template struct {
 	prog *jsruntime.Program
@@ -43,7 +43,7 @@ func LoadTemplate(source []byte, opts TemplateOptions) (*Template, error) {
 	return &Template{prog: prog}, nil
 }
 
-// Tree runs the template with props and returns the feast-tree/v1 JSON, without
+// Tree runs the template with props and returns the waffle-tree/v1 JSON, without
 // producing a PDF. Props may be any JSON-encodable value (nil for none).
 func (t *Template) Tree(props any) ([]byte, error) {
 	propsJSON, err := marshalProps(props)
@@ -110,7 +110,7 @@ func (e instanceEvaluator) EvalPaint(id string, w, h float64) ([]any, error) {
 	return ops, nil
 }
 
-// extractText concatenates the text of all TEXT_INSTANCE nodes in a feast-tree
+// extractText concatenates the text of all TEXT_INSTANCE nodes in a waffle-tree
 // node array (the shape EvalCallback returns).
 func extractText(nodesJSON []byte) string {
 	var nodes []json.RawMessage
@@ -159,7 +159,7 @@ func marshalProps(props any) ([]byte, error) {
 	}
 	b, err := json.Marshal(props)
 	if err != nil {
-		return nil, fmt.Errorf("feast: marshal props: %w", err)
+		return nil, fmt.Errorf("waffle: marshal props: %w", err)
 	}
 	return b, nil
 }

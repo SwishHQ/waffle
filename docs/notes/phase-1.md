@@ -38,7 +38,7 @@ Status: complete. `internal/pdf` produces valid, deterministic PDFs and passes
   `/ID` + UTC dates ⇒ byte-identical output for identical input. The committed
   golden (`internal/pdf/testdata/hello.golden.pdf`) is byte-exact; because the
   content stream is Flate-compressed it can drift across Go toolchain versions —
-  regenerate with `FEAST_UPDATE=1` if that happens. The in-process determinism
+  regenerate with `WAFFLE_UPDATE=1` if that happens. The in-process determinism
   test does not depend on the golden.
 
 ## Still open before Phase 2
@@ -46,6 +46,6 @@ Status: complete. `internal/pdf` produces valid, deterministic PDFs and passes
 - **folio code read** (budgeted in Phase 0): evaluate `github.com/carlos7ags/folio`'s
   writer/layout patterns as a design reference before building the flexbox +
   layout pipeline. Not yet done.
-- **Phase R1 (JS-runtime spike)** remains the gate before the `@feast/react`
+- **Phase R1 (JS-runtime spike)** remains the gate before the `@waffle/react`
   package internals: prove React + react-reconciler run on goja. Phases 1–2 are
   engine-agnostic and proceed regardless.

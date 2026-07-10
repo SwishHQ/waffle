@@ -4,8 +4,8 @@ import (
 	"math"
 	"testing"
 
-	"github.com/swish/feast/internal/contract"
-	"github.com/swish/feast/internal/tree"
+	"github.com/swish/waffle/internal/contract"
+	"github.com/swish/waffle/internal/tree"
 )
 
 func layoutJSON(t *testing.T, doc string) *Result {
@@ -33,7 +33,7 @@ func frameEq(t *testing.T, name string, got Rect, x, y, w, h float64) {
 }
 
 func TestLayoutPaddingAndFixedChild(t *testing.T) {
-	res := layoutJSON(t, `{"version":"feast-tree/v1","document":{"children":[
+	res := layoutJSON(t, `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[200,100],"style":{"padding":10}},"children":[
 			{"type":"VIEW","props":{"style":{"width":50,"height":30,"backgroundColor":"red"}}}
 		]}
@@ -55,7 +55,7 @@ func TestLayoutPaddingAndFixedChild(t *testing.T) {
 }
 
 func TestLayoutRowFlexGrow(t *testing.T) {
-	res := layoutJSON(t, `{"version":"feast-tree/v1","document":{"children":[
+	res := layoutJSON(t, `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[300,100]},"children":[
 			{"type":"VIEW","props":{"style":{"flexDirection":"row","height":50}},"children":[
 				{"type":"VIEW","props":{"style":{"flexGrow":1}}},
@@ -71,7 +71,7 @@ func TestLayoutRowFlexGrow(t *testing.T) {
 }
 
 func TestLayoutNamedPageSizeAndOrientation(t *testing.T) {
-	res := layoutJSON(t, `{"version":"feast-tree/v1","document":{"children":[
+	res := layoutJSON(t, `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":"A4","orientation":"landscape"},"children":[]}
 	]}}`)
 	p := res.Pages[0]
@@ -83,7 +83,7 @@ func TestLayoutNamedPageSizeAndOrientation(t *testing.T) {
 
 func TestLayoutUnitsAndMargins(t *testing.T) {
 	// 1in margin = 72pt; child at (72,72).
-	res := layoutJSON(t, `{"version":"feast-tree/v1","document":{"children":[
+	res := layoutJSON(t, `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[300,300]},"children":[
 			{"type":"VIEW","props":{"style":{"margin":"1in","width":50,"height":50}}}
 		]}
@@ -93,7 +93,7 @@ func TestLayoutUnitsAndMargins(t *testing.T) {
 }
 
 func TestLayoutMultiplePages(t *testing.T) {
-	res := layoutJSON(t, `{"version":"feast-tree/v1","document":{"children":[
+	res := layoutJSON(t, `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[100,100]},"children":[]},
 		{"type":"PAGE","props":{"size":[200,200]},"children":[]}
 	]}}`)
@@ -107,7 +107,7 @@ func TestLayoutMultiplePages(t *testing.T) {
 
 func TestLayoutPercentDimensions(t *testing.T) {
 	// Page 200x100 (column); child 50% wide, 100% tall.
-	res := layoutJSON(t, `{"version":"feast-tree/v1","document":{"children":[
+	res := layoutJSON(t, `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[200,100]},"children":[
 			{"type":"VIEW","props":{"style":{"width":"50%","height":"100%"}}}
 		]}
@@ -116,7 +116,7 @@ func TestLayoutPercentDimensions(t *testing.T) {
 }
 
 func TestLayoutTextMeasured(t *testing.T) {
-	res := layoutJSON(t, `{"version":"feast-tree/v1","document":{"children":[
+	res := layoutJSON(t, `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[300,100]},"children":[
 			{"type":"TEXT","props":{"style":{"fontSize":20}},"children":[
 				{"type":"TEXT_INSTANCE","value":"Hello"}
@@ -137,7 +137,7 @@ func TestLayoutTextMeasured(t *testing.T) {
 
 func TestLayoutTextWraps(t *testing.T) {
 	// A long line in a narrow page must wrap to multiple lines.
-	res := layoutJSON(t, `{"version":"feast-tree/v1","document":{"children":[
+	res := layoutJSON(t, `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[120,300]},"children":[
 			{"type":"TEXT","props":{"style":{"fontSize":12}},"children":[
 				{"type":"TEXT_INSTANCE","value":"The quick brown fox jumps over the lazy dog again and again"}
@@ -158,7 +158,7 @@ func TestLayoutTextWraps(t *testing.T) {
 
 func TestPaginationSplitsOverflow(t *testing.T) {
 	// Page 100pt tall, four 40pt blocks (160pt) → must split across pages.
-	res := layoutJSON(t, `{"version":"feast-tree/v1","document":{"children":[
+	res := layoutJSON(t, `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[80,100]},"children":[
 			{"type":"VIEW","props":{"style":{"height":40,"backgroundColor":"red"}}},
 			{"type":"VIEW","props":{"style":{"height":40,"backgroundColor":"green"}}},
@@ -179,7 +179,7 @@ func TestPaginationSplitsOverflow(t *testing.T) {
 }
 
 func TestPaginationWrapFalseClips(t *testing.T) {
-	res := layoutJSON(t, `{"version":"feast-tree/v1","document":{"children":[
+	res := layoutJSON(t, `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[80,100],"wrap":false},"children":[
 			{"type":"VIEW","props":{"style":{"height":40}}},
 			{"type":"VIEW","props":{"style":{"height":40}}},
@@ -206,7 +206,7 @@ func firstText(b *Box) *TextInfo {
 
 func TestPaginationSplitsTextAcrossPages(t *testing.T) {
 	// A long paragraph on a short page must split its lines across pages.
-	res := layoutJSON(t, `{"version":"feast-tree/v1","document":{"children":[
+	res := layoutJSON(t, `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[130,30]},"children":[
 			{"type":"TEXT","props":{"style":{"fontSize":12,"lineHeight":1}},"children":[
 				{"type":"TEXT_INSTANCE","value":"one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen"}
@@ -232,7 +232,7 @@ func TestPaginationSplitsTextAcrossPages(t *testing.T) {
 
 func TestPaginationForcedBreak(t *testing.T) {
 	// Both blocks fit on one 200pt page, but the second forces a page break.
-	res := layoutJSON(t, `{"version":"feast-tree/v1","document":{"children":[
+	res := layoutJSON(t, `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[100,200]},"children":[
 			{"type":"VIEW","props":{"style":{"height":20,"backgroundColor":"red"}}},
 			{"type":"VIEW","props":{"break":true,"style":{"height":20,"backgroundColor":"blue"}}}
@@ -251,7 +251,7 @@ func TestPaginationForcedBreak(t *testing.T) {
 }
 
 func TestPaginationFixedRepeats(t *testing.T) {
-	res := layoutJSON(t, `{"version":"feast-tree/v1","document":{"children":[
+	res := layoutJSON(t, `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[100,100]},"children":[
 			{"type":"VIEW","props":{"style":{"height":40}}},
 			{"type":"VIEW","props":{"style":{"height":40}}},
@@ -282,7 +282,7 @@ func TestPaginationFixedRepeats(t *testing.T) {
 func TestPaginationMinPresenceAhead(t *testing.T) {
 	// Block A (30pt) fits, but B has minPresenceAhead=50; only ~10pt remain after A,
 	// so B (and A? no — A stays, B breaks) is pushed to page 2.
-	res := layoutJSON(t, `{"version":"feast-tree/v1","document":{"children":[
+	res := layoutJSON(t, `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[100,40]},"children":[
 			{"type":"VIEW","props":{"style":{"height":30}}},
 			{"type":"VIEW","props":{"minPresenceAhead":50,"style":{"height":8}}}
@@ -317,7 +317,7 @@ func TestPaginationWidows(t *testing.T) {
 
 func TestPageNumberTemplates(t *testing.T) {
 	// A fixed footer with a page-number template, over content that spans 2 pages.
-	res := layoutJSON(t, `{"version":"feast-tree/v1","document":{"children":[
+	res := layoutJSON(t, `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[120,100]},"children":[
 			{"type":"VIEW","props":{"style":{"height":60}}},
 			{"type":"VIEW","props":{"style":{"height":60}}},

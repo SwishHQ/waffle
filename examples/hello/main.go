@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/swish/feast/internal/pdf"
+	"github.com/swish/waffle/internal/pdf"
 )
 
 // A4 in points (72 dpi).
@@ -26,8 +26,8 @@ func main() {
 
 	doc := pdf.New(pdf.Options{
 		Title:        "Hello",
-		Creator:      "feast",
-		Producer:     "feast",
+		Creator:      "waffle",
+		Producer:     "waffle",
 		PDFVersion:   "1.4",
 		CreationDate: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 	})

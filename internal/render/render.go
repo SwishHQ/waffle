@@ -1,5 +1,5 @@
 // Package render paints a laid-out document (layout.Result) onto the PDF writer,
-// producing the final bytes. It is feast's analogue of react-pdf's render step,
+// producing the final bytes. It is waffle's analogue of react-pdf's render step,
 // for the View-only subset: background fills and borders. Text, images, SVG,
 // transforms, opacity, and border-radius arrive in later phases.
 //
@@ -15,13 +15,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/swish/feast/internal/contract"
-	"github.com/swish/feast/internal/layout"
-	"github.com/swish/feast/internal/pdf"
-	"github.com/swish/feast/internal/pdf/afm"
-	"github.com/swish/feast/internal/stylesheet"
-	"github.com/swish/feast/internal/transform"
-	"github.com/swish/feast/internal/tree"
+	"github.com/swish/waffle/internal/contract"
+	"github.com/swish/waffle/internal/layout"
+	"github.com/swish/waffle/internal/pdf"
+	"github.com/swish/waffle/internal/pdf/afm"
+	"github.com/swish/waffle/internal/stylesheet"
+	"github.com/swish/waffle/internal/transform"
+	"github.com/swish/waffle/internal/tree"
 )
 
 // Options configure rendering.
@@ -35,7 +35,7 @@ type Options struct {
 func Render(res *layout.Result, w io.Writer, opts Options) error {
 	docOpts := opts.Doc
 	if docOpts.Producer == "" {
-		docOpts.Producer = "feast"
+		docOpts.Producer = "waffle"
 	}
 	doc := pdf.New(docOpts)
 

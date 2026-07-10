@@ -1,19 +1,19 @@
-# feast
+# waffle
 
 Write PDFs in React, render them from Go — no Node.js.
 
-Documents are authored in **ReactJS** exactly as [react-pdf](https://github.com/diegomura/react-pdf) users write them today (JSX/TSX, components, props, styles). Everything after that — transpiling the JSX, running React, layout, text shaping, pagination, and PDF generation — happens **inside the Go process**. feast transpiles your source with [esbuild](https://github.com/evanw/esbuild) and runs real React on the [goja](https://github.com/dop251/goja) JavaScript engine, both pure Go. **goja is the only JS engine — there is no Node sidecar and no cgo.**
+Documents are authored in **ReactJS** exactly as [react-pdf](https://github.com/diegomura/react-pdf) users write them today (JSX/TSX, components, props, styles). Everything after that — transpiling the JSX, running React, layout, text shaping, pagination, and PDF generation — happens **inside the Go process**. waffle transpiles your source with [esbuild](https://github.com/evanw/esbuild) and runs real React on the [goja](https://github.com/dop251/goja) JavaScript engine, both pure Go. **goja is the only JS engine — there is no Node sidecar and no cgo.**
 
 See [PLAN.md](PLAN.md) for the full architecture, the react-pdf parity target, and the phase-by-phase build plan.
 
 ## Quickstart
 
-Author a document in React (`invoice.jsx`) — no React import needed. `@feast/react`
+Author a document in React (`invoice.jsx`) — no React import needed. `@waffle/react`
 is a virtual module the engine provides at transpile time, so there is nothing to
 `npm install` and no `node_modules`:
 
 ```jsx
-import { Document, Page, View, Text } from '@feast/react';
+import { Document, Page, View, Text } from '@waffle/react';
 
 export default function Invoice({ customer, total }) {
   return (
@@ -38,14 +38,14 @@ import (
 	_ "embed"
 	"os"
 
-	"github.com/swish/feast"
+	"github.com/swish/waffle"
 )
 
 //go:embed invoice.jsx
 var invoiceJSX []byte
 
 func main() {
-	tmpl, err := feast.LoadTemplate(invoiceJSX, feast.TemplateOptions{Filename: "invoice.jsx"})
+	tmpl, err := waffle.LoadTemplate(invoiceJSX, waffle.TemplateOptions{Filename: "invoice.jsx"})
 	if err != nil {
 		panic(err)
 	}
@@ -61,13 +61,13 @@ func main() {
 }
 ```
 
-`LoadTemplate` compiles once; `Render` runs the document on a fresh goja VM with the given props and writes a PDF. For a one-shot render use `feast.RenderReact`. If you already have a serialized element tree (from any producer of the contract), `feast.RenderTree` ingests `feast-tree/v1` JSON directly.
+`LoadTemplate` compiles once; `Render` runs the document on a fresh goja VM with the given props and writes a PDF. For a one-shot render use `waffle.RenderReact`. If you already have a serialized element tree (from any producer of the contract), `waffle.RenderTree` ingests `waffle-tree/v1` JSON directly.
 
 The CLI does the same:
 
 ```sh
-feast invoice.jsx invoice.pdf props.json   # JSX + props → PDF (in-process, goja)
-feast tree.json   out.pdf                   # a pre-serialized feast-tree/v1 → PDF
+waffle invoice.jsx invoice.pdf props.json   # JSX + props → PDF (in-process, goja)
+waffle tree.json   out.pdf                   # a pre-serialized waffle-tree/v1 → PDF
 ```
 
 ## Status
@@ -85,7 +85,7 @@ The engine is feature-complete for the core react-pdf surface, and React runs in
 - **Opacity & stacking** — `opacity` via ExtGState (nested multiplication) and `zIndex` paint ordering among siblings, applied to a box and its subtree.
 - **Transforms** — `transform` (`rotate`/`scale`/`translate`/`skew`/`matrix`) about `transform-origin` (default center), applied to a box and its subtree.
 - **Encryption** — `<Document userPassword ownerPassword permissions>` produces a password-protected PDF (standard security handler, **RC4-128, AES-128, or AES-256** via `encryptionMethod="aes"`/`"aes256"`).
-- **JS engine** (`internal/jsruntime`) — esbuild transpiles JSX/TSX and bundles embedded React + `@feast/react`; goja executes it to produce a `feast-tree/v1` document. Real React runs: components, props, `.map`, **hooks** (`useState`/`useMemo`/`useContext`/`useRef`/`useReducer`/…), **context** (`<Ctx.Provider>` + `useContext`), and `React.memo`/`forwardRef`.
+- **JS engine** (`internal/jsruntime`) — esbuild transpiles JSX/TSX and bundles embedded React + `@waffle/react`; goja executes it to produce a `waffle-tree/v1` document. Real React runs: components, props, `.map`, **hooks** (`useState`/`useMemo`/`useContext`/`useRef`/`useReducer`/…), **context** (`<Ctx.Provider>` + `useContext`), and `React.memo`/`forwardRef`.
 
   **Function render-props** work too: `<Text render={({ pageNumber, totalPages }) => \`${pageNumber} / ${totalPages}\`} />` is evaluated on the live VM per page during pagination (the closure stays in goja; the Go engine calls back with each page's context).
 
@@ -116,18 +116,18 @@ go test ./...
 To regenerate golden files after an intentional change:
 
 ```sh
-FEAST_UPDATE=1 go test ./...
+WAFFLE_UPDATE=1 go test ./...
 ```
 
 ## Layout
 
 ```
-feast.go / render.go / template.go   public API: RenderTree, LoadTemplate/Template, RenderReact
+waffle.go / render.go / template.go   public API: RenderTree, LoadTemplate/Template, RenderReact
 internal/pdf/            the PDF writer core
   afm/                   Adobe Core-14 font metrics + WinAnsi encoding
-internal/jsruntime/      THE JS engine: esbuild transpile/bundle → goja execute → feast-tree JSON
-  assets/                vendored react.production.min.js + embedded @feast/react runtime
-internal/contract/       feast-tree/v1 parse + version gating
+internal/jsruntime/      THE JS engine: esbuild transpile/bundle → goja execute → waffle-tree JSON
+  assets/                vendored react.production.min.js + embedded @waffle/react runtime
+internal/contract/       waffle-tree/v1 parse + version gating
 internal/tree/           node model + structural validation
 internal/stylesheet/     units, colors, shorthands, media queries, inheritance
 internal/flexbox/        flexbox layout engine

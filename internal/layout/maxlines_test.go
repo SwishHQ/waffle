@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/swish/feast/internal/pdf/afm"
+	"github.com/swish/waffle/internal/pdf/afm"
 )
 
 func mustHelv(t *testing.T) *afm.Metrics {

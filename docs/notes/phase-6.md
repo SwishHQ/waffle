@@ -22,7 +22,7 @@
   (`width:100` on a 2:1 image → height 50) + alpha demo validates. Deferred:
   URL/file fetch, objectFit contain/cover, ImageBackground.
 
-**Images now render end-to-end from feast-tree JSON.**
+**Images now render end-to-end from waffle-tree JSON.**
 
 - **SVG path parser + shapes. ✅** `internal/svgparse`: path-`d` tokenizer +
   parser (M/L/H/V/C/S/Q/T/Z, abs/rel, implicit repeats, tight number packing,
@@ -38,7 +38,7 @@
   path) validates. Deferred: transform attr, gradients, clipPath, svg `<text>`,
   style-based (vs prop) paint.
 
-**SVG now renders end-to-end from feast-tree JSON.**
+**SVG now renders end-to-end from waffle-tree JSON.**
 
 ## Next
 
@@ -46,8 +46,8 @@
    the JS side (later) or, for the static path, Canvas with explicit ops. Shares
    the vector-drawing code with SVG.
 2. **Gradients / clipPath** for SVG (shading dictionaries in the pdf writer).
-3. **The React front-end** — Phase R1 goja spike + `@feast/react`. The last big
+3. **The React front-end** — Phase R1 goja spike + `@waffle/react`. The last big
    chunk / the plan's gated milestone; **flag to the user before starting**.
-2. **The React front-end** — Phase R1 goja spike + `@feast/react`. Largest
+2. **The React front-end** — Phase R1 goja spike + `@waffle/react`. Largest
    remaining chunk / the plan's gated milestone; **flag to the user first**.
 3. Async asset resolution (URL/file), objectFit, flexbox min/max + flex-wrap.

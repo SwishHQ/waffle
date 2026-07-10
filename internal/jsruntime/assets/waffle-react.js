@@ -1,10 +1,10 @@
-// feast-react.js — the @feast/react runtime: component primitives, the
+// waffle-react.js — the @waffle/react runtime: component primitives, the
 // single-pass renderer (hooks dispatcher + context stack), Font/StyleSheet, and
-// the serializer that emits feast-tree/v1 (incl. {$cb} render-prop callbacks).
+// the serializer that emits waffle-tree/v1 (incl. {$cb} render-prop callbacks).
 //
-// This is THE source of truth. feast is a pure Go library with no npm package;
-// the esbuild plugin in jsruntime.go resolves the bare import `@feast/react` to
-// this embedded module, so user JSX importing from '@feast/react' works with
+// This is THE source of truth. waffle is a pure Go library with no npm package;
+// the esbuild plugin in jsruntime.go resolves the bare import `@waffle/react` to
+// this embedded module, so user JSX importing from '@waffle/react' works with
 // nothing installed. See assets/VENDOR.md.
 import React from 'react';
 
@@ -238,7 +238,7 @@ export const StyleSheet = {
     Array.isArray(style) ? Object.assign({}, ...style.filter(Boolean)) : style || {},
 };
 
-// --- serialize: React element → feast-tree/v1 -------------------------------
+// --- serialize: React element → waffle-tree/v1 -------------------------------
 // cleanProps drops function-valued props, EXCEPT recognized callback props
 // (currently `render`): those are registered in the VM and replaced with a
 // {$cb:id} ref the Go engine evaluates per page. onRender and other non-content
@@ -278,7 +278,7 @@ export function serialize(element) {
     ? rendered.find((n) => n && n.type === 'DOCUMENT')
     : rendered;
   if (!doc || doc.type !== 'DOCUMENT') {
-    throw new Error('@feast/react: the root element must be a <Document>');
+    throw new Error('@waffle/react: the root element must be a <Document>');
   }
 
   const document = {
@@ -288,7 +288,7 @@ export function serialize(element) {
   if (fonts.length) document.fonts = fonts.map((f) => ({ ...f }));
   if (emojiSource) document.emojiSource = emojiSource;
 
-  const tree = { version: 'feast-tree/v1', document };
+  const tree = { version: 'waffle-tree/v1', document };
   const ids = Object.keys(callbacks);
   if (ids.length) tree.callbacks = ids;
   return tree;
@@ -299,11 +299,11 @@ export function serializeString(element) {
 }
 
 // evalCallbackString evaluates a registered render-prop callback by id with the
-// given page context (JSON) and returns a JSON array of feast-tree nodes. The
+// given page context (JSON) and returns a JSON array of waffle-tree nodes. The
 // Go engine calls this per page during pagination.
 export function evalCallbackString(id, ctxJSON) {
   const fn = callbacks[id];
-  if (!fn) throw new Error('@feast/react: unknown callback ' + id);
+  if (!fn) throw new Error('@waffle/react: unknown callback ' + id);
   const ctx = ctxJSON ? JSON.parse(ctxJSON) : {};
   const resolved = resolveResult(fn(ctx));
   const list = Array.isArray(resolved) ? resolved : resolved ? [resolved] : [];
@@ -337,7 +337,7 @@ function makePainter() {
 // paint(painter, availableWidth, availableHeight).
 export function evalPaintString(id, w, h) {
   const fn = callbacks[id];
-  if (!fn) throw new Error('@feast/react: unknown paint callback ' + id);
+  if (!fn) throw new Error('@waffle/react: unknown paint callback ' + id);
   const painter = makePainter();
   installDispatcher(() => fn(painter, w, h));
   return JSON.stringify(painter._ops);

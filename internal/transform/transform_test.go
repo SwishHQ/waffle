@@ -40,7 +40,7 @@ func TestScale(t *testing.T) {
 	mustPtEq(t, x, y, 8, 15, "Scale")
 }
 
-// Rotate(90) must map (1,0) -> (0,1) in feast's y-down space (clockwise on
+// Rotate(90) must map (1,0) -> (0,1) in waffle's y-down space (clockwise on
 // screen: the +x axis turns toward +y, i.e. downward).
 func TestRotate90YDown(t *testing.T) {
 	x, y := Rotate(90).Apply(1, 0)

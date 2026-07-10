@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// renderTree compiles a JSX document and returns its feast-tree JSON, failing
+// renderTree compiles a JSX document and returns its waffle-tree JSON, failing
 // the test on any error. Used to prove React hooks/context run under goja.
 func renderTree(t *testing.T, doc string) string {
 	t.Helper()
@@ -22,7 +22,7 @@ func renderTree(t *testing.T, doc string) string {
 
 func TestGojaUseState(t *testing.T) {
 	const doc = `
-import { Document, Page, Text } from '@feast/react';
+import { Document, Page, Text } from '@waffle/react';
 import { useState } from 'react';
 export default function App() {
   const [n] = useState(41);
@@ -37,7 +37,7 @@ export default function App() {
 
 func TestGojaUseContext(t *testing.T) {
 	const doc = `
-import { Document, Page, View, Text } from '@feast/react';
+import { Document, Page, View, Text } from '@waffle/react';
 import React from 'react';
 const Theme = React.createContext('light');
 function Label() {
@@ -68,7 +68,7 @@ export default function App() {
 
 func TestGojaMemoAndForwardRef(t *testing.T) {
 	const doc = `
-import { Document, Page, Text } from '@feast/react';
+import { Document, Page, Text } from '@waffle/react';
 import React from 'react';
 const Memo = React.memo(function Memo(){ return <Text>memo-ok</Text>; });
 const Fwd = React.forwardRef(function Fwd(props, ref){ return <Text>{'fref-' + props.n}</Text>; });
@@ -89,7 +89,7 @@ export default function App() {
 
 func TestGojaUseMemoReducerRef(t *testing.T) {
 	const doc = `
-import { Document, Page, Text } from '@feast/react';
+import { Document, Page, Text } from '@waffle/react';
 import { useMemo, useReducer, useRef } from 'react';
 export default function App() {
   const v = useMemo(() => 6 * 7, []);

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/swish/feast/internal/contract"
-	"github.com/swish/feast/internal/tree"
+	"github.com/swish/waffle/internal/contract"
+	"github.com/swish/waffle/internal/tree"
 )
 
 // stubEval returns a deterministic "P{page}/{total}" string, standing in for the
@@ -25,7 +25,7 @@ func (s *stubEval) EvalPaint(id string, w, h float64) ([]any, error) {
 // A fixed footer with a function render-prop ({$cb}) must be evaluated per page
 // with that page's number — the dynamic analogue of the string-template footer.
 func TestCallbackRenderPropPerPage(t *testing.T) {
-	doc := `{"version":"feast-tree/v1","document":{"children":[
+	doc := `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[80,100]},"children":[
 			{"type":"VIEW","props":{"style":{"height":40}}},
 			{"type":"VIEW","props":{"style":{"height":40}}},
@@ -74,7 +74,7 @@ func TestCallbackRenderPropPerPage(t *testing.T) {
 // A callback render-prop with no evaluator (static path) must not crash; it
 // simply produces no text box.
 func TestCallbackRenderPropNoEvaluator(t *testing.T) {
-	doc := `{"version":"feast-tree/v1","document":{"children":[
+	doc := `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[80,100]},"children":[
 			{"type":"TEXT","props":{"fixed":true,"render":{"$cb":"cb_0"},"style":{"position":"absolute","bottom":5}}}
 		]}
@@ -112,7 +112,7 @@ func findCallbackText(b *Box) *TextInfo {
 // A Canvas with a function paint prop must be evaluated after layout (once its
 // frame is known) and its ops attached to the box.
 func TestCanvasPaintCallback(t *testing.T) {
-	doc := `{"version":"feast-tree/v1","document":{"children":[
+	doc := `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[100,100]},"children":[
 			{"type":"CANVAS","props":{"paint":{"$cb":"cb_0"},"style":{"width":80,"height":40}}}
 		]}

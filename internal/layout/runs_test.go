@@ -3,9 +3,9 @@ package layout
 import (
 	"testing"
 
-	"github.com/swish/feast/internal/contract"
-	"github.com/swish/feast/internal/stylesheet"
-	"github.com/swish/feast/internal/tree"
+	"github.com/swish/waffle/internal/contract"
+	"github.com/swish/waffle/internal/stylesheet"
+	"github.com/swish/waffle/internal/tree"
 )
 
 // buildRuns flattens nested Text into styled runs; a bold child yields a run that

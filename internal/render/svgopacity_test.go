@@ -8,7 +8,7 @@ import (
 
 // A shape with fill-opacity paints through an ExtGState alpha (gs) < 1.
 func TestRenderSVGFillOpacity(t *testing.T) {
-	doc := `{"version":"feast-tree/v1","document":{"children":[
+	doc := `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[200,200]},"children":[
 			{"type":"SVG","props":{"style":{"width":100,"height":100},"viewBox":"0 0 100 100"},"children":[
 				{"type":"RECT","props":{"x":0,"y":0,"width":50,"height":50,"fill":"#ff0000","fillOpacity":0.4}}
@@ -30,7 +30,7 @@ func TestRenderSVGFillOpacity(t *testing.T) {
 
 // A fully-opaque shape emits no gs.
 func TestRenderSVGNoOpacity(t *testing.T) {
-	doc := `{"version":"feast-tree/v1","document":{"children":[
+	doc := `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[200,200]},"children":[
 			{"type":"SVG","props":{"style":{"width":100,"height":100},"viewBox":"0 0 100 100"},"children":[
 				{"type":"RECT","props":{"x":0,"y":0,"width":50,"height":50,"fill":"#00ff00"}}

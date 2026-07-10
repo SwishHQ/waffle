@@ -11,19 +11,19 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/swish/feast"
+	"github.com/swish/waffle"
 )
 
 // renderAppointment renders the embedded appointment.jsx with sample props and
 // returns the PDF bytes. It changes into the package directory first so the
 // JSX's relative asset paths (assets/…) resolve.
-func renderAppointment(t *testing.T) ([]byte, *feast.RenderInfo) {
+func renderAppointment(t *testing.T) ([]byte, *waffle.RenderInfo) {
 	t.Helper()
 	if err := os.Chdir(packageDir()); err != nil {
 		t.Fatalf("chdir: %v", err)
 	}
 	var buf bytes.Buffer
-	info, err := feast.RenderReact(context.Background(), appointmentJSX, sampleProps(), &buf)
+	info, err := waffle.RenderReact(context.Background(), appointmentJSX, sampleProps(), &buf)
 	if err != nil {
 		t.Fatalf("render: %v", err)
 	}
@@ -75,7 +75,7 @@ func TestGenerateAppointmentPDF(t *testing.T) {
 	}
 
 	// Inflate the content streams and confirm real text made it in. Bold spans
-	// are inline runs, which feast emits one word per Tj, so multi-word emphasised
+	// are inline runs, which waffle emits one word per Tj, so multi-word emphasised
 	// phrases are matched by a single word (e.g. "Operations" from the designation).
 	content := inflateStreams(t, pdf)
 	for _, want := range []string{

@@ -1,4 +1,4 @@
-# feast — write PDFs in React, render them from Go
+# waffle — write PDFs in React, render them from Go
 
 **Build plan v2 — for review before implementation.**
 Documents are authored in **ReactJS exactly as react-pdf users write them today** (JSX/TSX, hooks, composition). Rendering happens in a **Go library**: layout, text, pagination, and PDF generation are pure Go. Target: feature parity with `@react-pdf/renderer` 4.5.1. This document is the implementation spec, written to be executed phase-by-phase by an implementing agent (Opus 4.8) with minimal additional research.
@@ -16,25 +16,25 @@ React element tree ──react-reconciler──▶ node tree ──layout (Yoga+
 └────────────────── all JavaScript ──────────────────────────────────────────────────────────────┘
 ```
 
-feast splits that pipeline at the natural seam — the node tree. React's only job in react-pdf is producing that tree; layout and painting are already React-free. feast makes the tree a **versioned serialized contract** and moves everything after it to Go:
+waffle splits that pipeline at the natural seam — the node tree. React's only job in react-pdf is producing that tree; layout and painting are already React-free. waffle makes the tree a **versioned serialized contract** and moves everything after it to Go:
 
 ```
   JS side (authoring)                        │  Go side (the library)
                                              │
-  user's JSX/TSX  ──@feast/react────────────▶│──▶ tree ingest ──▶ layout ──▶ render ──▶ PDF writer ──▶ PDF
+  user's JSX/TSX  ──@waffle/react────────────▶│──▶ tree ingest ──▶ layout ──▶ render ──▶ PDF writer ──▶ PDF
   (real React 18/19,  (custom reconciler     │      │                │
    hooks, context)     + serializer)         │      │           flexbox engine (vendored Yoga port)
                                              │      │           text engine (textkit port, HarfBuzz-port shaping)
-        feast tree contract (JSON, v1) ──────┘      │           font/image/svg engines
+        waffle tree contract (JSON, v1) ──────┘      │           font/image/svg engines
                                                     │
                              closures (render props etc.) called back
                              across the boundary during pagination (§3.4)
 ```
 
-**The JS engine is goja, and only goja** (decided 2026-07; no Node sidecar, no v8go). React runs *inside the Go process*, so feast is a single self-contained Go library. There are two ways to feed it a document, both producing/consuming the same contract:
+**The JS engine is goja, and only goja** (decided 2026-07; no Node sidecar, no v8go). React runs *inside the Go process*, so waffle is a single self-contained Go library. There are two ways to feed it a document, both producing/consuming the same contract:
 
-1. **In-process (primary — "it's just a Go library"):** `LoadTemplate(source, opts)` transpiles a JSX/TSX React source with esbuild (pure Go) and compiles it; `tpl.Render(ctx, props, w)` runs real React on goja (pure-Go JS engine, MIT, no cgo) with Go-supplied props and renders the PDF. `RenderReact` is the one-shot form. React itself and the `@feast/react` runtime are embedded and resolved from strings — no Node.js, no filesystem, no node_modules at render time. Single binary. **Implemented in `internal/jsruntime`.**
-2. **Static tree ingest:** a caller that prefers to serialize the element tree in a separate build step (e.g. via the `@feast/react` npm serializer) hands the JSON to Go (`feast.RenderTree`). This is not a second *engine* — it is the same contract, produced elsewhere; it is also the internal format the in-process path compiles to.
+1. **In-process (primary — "it's just a Go library"):** `LoadTemplate(source, opts)` transpiles a JSX/TSX React source with esbuild (pure Go) and compiles it; `tpl.Render(ctx, props, w)` runs real React on goja (pure-Go JS engine, MIT, no cgo) with Go-supplied props and renders the PDF. `RenderReact` is the one-shot form. React itself and the `@waffle/react` runtime are embedded and resolved from strings — no Node.js, no filesystem, no node_modules at render time. Single binary. **Implemented in `internal/jsruntime`.**
+2. **Static tree ingest:** a caller that prefers to serialize the element tree in a separate build step (e.g. via the `@waffle/react` npm serializer) hands the JSON to Go (`waffle.RenderTree`). This is not a second *engine* — it is the same contract, produced elsewhere; it is also the internal format the in-process path compiles to.
 
 There is deliberately **no react-reconciler reimplementation in Go** — we use real React, in JS, on goja.
 
@@ -43,7 +43,7 @@ There is deliberately **no react-reconciler reimplementation in Go** — we use 
 ## 1. Goals and non-goals
 
 ### Goals
-- **Author in React, as-is:** existing react-pdf knowledge, docs and most code transfer — same components, same props, same style objects; migration = change the import from `@react-pdf/renderer` to `@feast/react` and drop web-only components.
+- **Author in React, as-is:** existing react-pdf knowledge, docs and most code transfer — same components, same props, same style objects; migration = change the import from `@react-pdf/renderer` to `@waffle/react` and drop web-only components.
 - **Consume as a Go library:** `go get`, pass data as props from Go, get PDF bytes. **No Node required, ever** — React runs in-process on goja.
 - Everything react-pdf can express, with the **same layout semantics** (flexbox, default `flexDirection: column`, same pagination rules, same style property set, same units).
 - Go core is pure Go, permissive licenses only (MIT/BSD/Apache/CC0), no cgo in the default build.
@@ -56,13 +56,13 @@ There is deliberately **no react-reconciler reimplementation in Go** — we use 
 - Re-render loops / state-driven regeneration: a render is one shot, like react-pdf's `renderToFile`. Hooks and state work while the tree is being built, then the document is done.
 
 ### Naming
-Working name **feast**; Go module placeholder `github.com/swish/feast`; npm package placeholder `@feast/react`. Confirm at review.
+Working name **waffle**; Go module placeholder `github.com/swish/waffle`; npm package placeholder `@waffle/react`. Confirm at review.
 
 ---
 
 ## 2. Reference: what react-pdf 4.5.1 does (parity target)
 
-This section is the checklist the implementation must satisfy. Compiled from react-pdf.org docs and the monorepo source (2026-07). **The `@feast/react` npm package must accept exactly these components and props; the Go engine must implement exactly these semantics.**
+This section is the checklist the implementation must satisfy. Compiled from react-pdf.org docs and the monorepo source (2026-07). **The `@waffle/react` npm package must accept exactly these components and props; the Go engine must implement exactly these semantics.**
 
 ### 2.1 Components
 | Component | Key props |
@@ -129,24 +129,24 @@ Attributed strings → runs; engines: **Knuth-Plass linebreaker with best-fit gr
 
 ## 3. The React authoring layer, the tree contract, and the Go API
 
-### 3.1 `@feast/react` — the npm package
+### 3.1 `@waffle/react` — the npm package
 
 A thin package (~2–3k LOC TypeScript) that is API-compatible with `@react-pdf/renderer`'s document components:
 
 - **Exports:** `Document, Page, View, Text, Image, ImageBackground, Link, Note, Canvas, Svg, G, Path, Rect, Circle, Ellipse, Line, Polyline, Polygon, Tspan, Defs, ClipPath, LinearGradient, RadialGradient, Stop, Marker, TextInput, Checkbox, Select, List, FieldSet, Font, StyleSheet` — with TypeScript prop types copied to match react-pdf's (§2.1). No web components, no `renderToFile` (rendering is Go's job).
 - **Reconciler:** the real `react-reconciler` in sync/legacy mode (same as react-pdf) with a host config whose instances are plain JS objects `{type, props, children}`. Hooks, context, `React.memo`, composition — all real React, all work.
-- **Serializer:** walks the committed tree → feast tree contract JSON (§3.2). Function-valued props (render, paint, hyphenationCallback, src-callbacks) are registered in a **callback table** and serialized as `{"$cb": "cb_7"}` references (§3.4).
+- **Serializer:** walks the committed tree → waffle tree contract JSON (§3.2). Function-valued props (render, paint, hyphenationCallback, src-callbacks) are registered in a **callback table** and serialized as `{"$cb": "cb_7"}` references (§3.4).
 - **`Font` / `StyleSheet` shims:** `StyleSheet.create` = identity (as upstream). `Font.register`/`registerHyphenationCallback`/`registerEmojiSource` write into the serialized document header instead of a JS font store.
-- **Entry points:** `serialize(element): FeastTree` (for static mode / tests) and `__feastMain(propsJSON): FeastTree` — the well-known export the Go runtime calls (§3.3).
-- **CLI (`feast-react`):** wraps esbuild. `feast-react build src/Invoice.tsx -o invoice.bundle.js` produces a single self-contained IIFE/CJS bundle (React + reconciler + user code, target pinned to what goja supports, no code splitting, `--inline-assets` optionally base64-inlines local fonts/images). `feast-react dev` = watch mode + preview via the feast CLI (§3.6).
+- **Entry points:** `serialize(element): WaffleTree` (for static mode / tests) and `__waffleMain(propsJSON): WaffleTree` — the well-known export the Go runtime calls (§3.3).
+- **CLI (`waffle-react`):** wraps esbuild. `waffle-react build src/Invoice.tsx -o invoice.bundle.js` produces a single self-contained IIFE/CJS bundle (React + reconciler + user code, target pinned to what goja supports, no code splitting, `--inline-assets` optionally base64-inlines local fonts/images). `waffle-react dev` = watch mode + preview via the waffle CLI (§3.6).
 
-### 3.2 The feast tree contract (`feast-tree/v1`)
+### 3.2 The waffle tree contract (`waffle-tree/v1`)
 
 The versioned JSON boundary between JS and Go. Design rules: stay **as close to react-pdf's internal node shape as possible** (so the reconciler is a pass-through and react-pdf's docs describe our contract), and make Go do all interpretation (style parsing, unit resolution, asset fetching).
 
 ```jsonc
 {
-  "version": "feast-tree/v1",
+  "version": "waffle-tree/v1",
   "document": {
     "props": { "title": "Invoice", "pdfVersion": "1.4", ... },
     "fonts": [ { "family": "Roboto", "fonts": [ {"src": "https://…/Roboto.ttf", "fontWeight": 700}, {"src": {"$inline": "base64…"}} ] } ],
@@ -175,15 +175,15 @@ The versioned JSON boundary between JS and Go. Design rules: stay **as close to 
 ### 3.3 Go public API
 
 ```go
-// Mode 2 — static tree (produced by `feast-react build --emit-tree`, tests, or any other producer)
+// Mode 2 — static tree (produced by `waffle-react build --emit-tree`, tests, or any other producer)
 func RenderTree(ctx context.Context, tree []byte, w io.Writer, opts ...Option) (*RenderInfo, error)
 
-// Mode 1 — embedded JS runtime (primary): bundle from `feast-react build`, e.g. via go:embed
-tpl, err := feast.LoadTemplate(bundleJS)          // parses + type-checks the bundle once, reusable
+// Mode 1 — embedded JS runtime (primary): bundle from `waffle-react build`, e.g. via go:embed
+tpl, err := waffle.LoadTemplate(bundleJS)          // parses + type-checks the bundle once, reusable
 info, err := tpl.Render(ctx, props, w, opts...)   // props: any Go value, JSON-marshaled into the component's props
 
 // Mode 3 — Node sidecar (same Template interface; opt-in)
-tpl, err := feast.NewSidecarTemplate(ctx, feast.SidecarConfig{Command: "node", Bundle: "invoice.bundle.js"})
+tpl, err := waffle.NewSidecarTemplate(ctx, waffle.SidecarConfig{Command: "node", Bundle: "invoice.bundle.js"})
 
 // Options: WithFontStore, WithHTTPClient, WithCreationDate (determinism), WithDebug, WithOnPage(...)
 ```
@@ -194,14 +194,14 @@ tpl, err := feast.NewSidecarTemplate(ctx, feast.SidecarConfig{Command: "node", B
 var invoiceTpl []byte
 
 func handler(w http.ResponseWriter, r *http.Request) {
-    tpl, _ := feast.LoadTemplate(invoiceTpl) // cache this
+    tpl, _ := waffle.LoadTemplate(invoiceTpl) // cache this
     tpl.Render(r.Context(), InvoiceProps{Customer: "ACME", Lines: lines}, w)
 }
 ```
 
 `RenderInfo` carries page count, warnings, and timing — the equivalent of `onRender` (which is otherwise a no-op prop, accepted for compatibility).
 
-A **secondary Go-native builder API** (`feast.NewView().Style(...)` fluent constructors, full spec in plan v1 §3) is retained because the engine's internal tree model makes it nearly free; it is the natural way to write engine tests and serves Go-only consumers. It compiles to the same contract. It is not the headline API and ships without doc-site prominence.
+A **secondary Go-native builder API** (`waffle.NewView().Style(...)` fluent constructors, full spec in plan v1 §3) is retained because the engine's internal tree model makes it nearly free; it is the natural way to write engine tests and serves Go-only consumers. It compiles to the same contract. It is not the headline API and ships without doc-site prominence.
 
 ### 3.4 Closures across the boundary (render props, paint, callbacks)
 
@@ -228,18 +228,18 @@ VM-mode mechanics: goja VMs are not goroutine-safe → each `Template` owns a `s
 
 ### 3.5 Data flow
 
-Props are the data channel: Go value → JSON → the root component's props. Everything data-driven (looping invoice lines, conditional sections) is ordinary React over props. Convention: the bundle's default export is the root component (a `<Document>`-returning function); the CLI wires it to `__feastMain`. TypeScript users share prop types with the Go side via generated types or hand-mirroring (out of scope to automate in v1; note in docs).
+Props are the data channel: Go value → JSON → the root component's props. Everything data-driven (looping invoice lines, conditional sections) is ordinary React over props. Convention: the bundle's default export is the root component (a `<Document>`-returning function); the CLI wires it to `__waffleMain`. TypeScript users share prop types with the Go side via generated types or hand-mirroring (out of scope to automate in v1; note in docs).
 
 ### 3.6 JS engines and the spike gate
 
-- **The one and only engine: goja** (`github.com/dop251/goja`, MIT, pure Go). Supports ES5 fully + most modern JS. **Decision (2026-07): goja only — no v8go, no Node sidecar.** feast bundles the user source with esbuild (`github.com/evanw/esbuild/pkg/api`, pure Go) targeting ES2015, resolving `react`, `react/jsx-runtime` and `@feast/react` from embedded strings via an in-memory plugin, and runs the resulting IIFE on goja. React's production build loads on goja with no shims (verified: no `process`/DOM references). **Implemented in `internal/jsruntime`** (`Compile` → `*Program`; `Program.Render(propsJSON) → treeJSON`).
+- **The one and only engine: goja** (`github.com/dop251/goja`, MIT, pure Go). Supports ES5 fully + most modern JS. **Decision (2026-07): goja only — no v8go, no Node sidecar.** waffle bundles the user source with esbuild (`github.com/evanw/esbuild/pkg/api`, pure Go) targeting ES2015, resolving `react`, `react/jsx-runtime` and `@waffle/react` from embedded strings via an in-memory plugin, and runs the resulting IIFE on goja. React's production build loads on goja with no shims (verified: no `process`/DOM references). **Implemented in `internal/jsruntime`** (`Compile` → `*Program`; `Program.Render(propsJSON) → treeJSON`).
 - **Status: the R1 spike passed, and hooks + context work.** Real React (automatic JSX runtime, function/class components, props, `.map`, **hooks** — `useState`/`useMemo`/`useContext`/`useRef`/`useReducer`/…, **context** providers/consumers, `React.memo`/`forwardRef`) executes on goja and renders to a pdfcpu-strict-valid PDF — see `internal/jsruntime/{jsruntime,hooks}_test.go` and `template_test.go`. Hooks run via a **synchronous single-pass dispatcher** (see §3.5a), not `react-reconciler`: a document is a pure function of props, so state setters and effects are intentionally inert. Remaining goja work: the callback bridge for function render props (§3.5) evaluated on the VM. A full `react-reconciler` host config (for stateful re-render/effects before capture) is a documented non-goal unless a real need appears.
 
 ### 3.7 Dev experience & migration
 
-- Migration from react-pdf: change import to `@feast/react`; delete `PDFViewer`/`PDFDownloadLink`/`BlobProvider`/`usePDF` usage (rendering moves to Go); everything else — components, styles, `Font.register`, render props — is intended to work unchanged. Ship a migration guide with the divergence list (§8).
-- Because authoring is literally React, the **parity test corpus uses identical TSX** rendered through both `@react-pdf/renderer` and feast, diffed (§7). This is also the honest answer to "does it really behave the same" — CI proves it per feature.
-- Preview during development: `feast-react dev` (sidecar → feast CLI → PDF in a viewer with reload). Using real react-pdf's `PDFViewer` for preview also works since the source is compatible, with a documented caveat that the preview engine ≠ the production engine.
+- Migration from react-pdf: change import to `@waffle/react`; delete `PDFViewer`/`PDFDownloadLink`/`BlobProvider`/`usePDF` usage (rendering moves to Go); everything else — components, styles, `Font.register`, render props — is intended to work unchanged. Ship a migration guide with the divergence list (§8).
+- Because authoring is literally React, the **parity test corpus uses identical TSX** rendered through both `@react-pdf/renderer` and waffle, diffed (§7). This is also the honest answer to "does it really behave the same" — CI proves it per feature.
+- Preview during development: `waffle-react dev` (sidecar → waffle CLI → PDF in a viewer with reload). Using real react-pdf's `PDFViewer` for preview also works since the source is compatible, with a documented caveat that the preview engine ≠ the production engine.
 
 ---
 
@@ -250,7 +250,7 @@ Props are the data channel: Go value → JSON → the root component's props. Ev
 1. It can't be the authoring layer — the requirement is documents **written in ReactJS**; templ doesn't run React or JSX, it only borrows the syntax for Go HTML templating.
 2. It can't be the bridge/ingest — it produces flat HTML strings, not a typed element tree; we'd have to invent an HTML-ish dialect and re-parse it, which is strictly worse than the JSON contract the reconciler emits directly.
 
-What templ *is*, is precedent for a possible **future third front-end**: a templ-style compiler letting Go-only teams write JSX-like `.feast` files that compile to contract-producing Go code. The contract (§3.2) keeps that door open at zero cost. Not in scope for v1; the secondary Go builder API (§3.3) covers Go-native authoring until then.
+What templ *is*, is precedent for a possible **future third front-end**: a templ-style compiler letting Go-only teams write JSX-like `.waffle` files that compile to contract-producing Go code. The contract (§3.2) keeps that door open at zero cost. Not in scope for v1; the secondary Go builder API (§3.3) covers Go-native authoring until then.
 
 ---
 
@@ -259,15 +259,15 @@ What templ *is*, is precedent for a possible **future third front-end**: a templ
 Monorepo: one Go module + one npm package.
 
 ```
-feast/
+waffle/
 ├── go.mod
-├── feast.go                 // public API: RenderTree, LoadTemplate, Template, options
+├── waffle.go                 // public API: RenderTree, LoadTemplate, Template, options
 ├── builder/                 // secondary Go-native element builders (compile to the contract)
-├── cmd/feast/               // CLI: `feast render tree.json -o out.pdf` (used by dev preview & CI corpus)
+├── cmd/waffle/               // CLI: `waffle render tree.json -o out.pdf` (used by dev preview & CI corpus)
 ├── internal/
 │   ├── contract/            // tree contract types, JSON (de)serialization, schema, versioning
 │   ├── tree/                // internal node model + validation (element paths in errors)
-│   ├── jsruntime/           // THE JS engine: esbuild transpile/bundle (embedded React + @feast/react) → goja execute → tree JSON
+│   ├── jsruntime/           // THE JS engine: esbuild transpile/bundle (embedded React + @waffle/react) → goja execute → tree JSON
 │   ├── stylesheet/          // parse react-pdf-shaped style values: units, shorthands, colors, media queries, inheritance
 │   ├── flexbox/             // vendored Yoga port + gap/fixes backport
 │   ├── textkit/             // attributed strings, KP linebreak, justify, decorate, itemize, substitute, bidi, hyphenate
@@ -277,9 +277,9 @@ feast/
 │   ├── layout/              // the step pipeline incl. pagination + CallbackEvaluator hooks
 │   ├── render/              // paint laid-out tree: ops, gradients, clipping, debug overlays
 │   └── pdf/                 // PDF writer (see §6.7)
-│   // NB: the @feast/react runtime (components, single-pass renderer, Font/StyleSheet,
-│   // serializer) lives embedded at internal/jsruntime/assets/feast-react.js — there is
-│   // no separate npm package (removed 2026-07; feast is a pure Go library).
+│   // NB: the @waffle/react runtime (components, single-pass renderer, Font/StyleSheet,
+│   // serializer) lives embedded at internal/jsruntime/assets/waffle-react.js — there is
+│   // no separate npm package (removed 2026-07; waffle is a pure Go library).
 ├── testdata/                // golden PDFs, fixture fonts/images, Yoga fixtures, contract fixtures, shared TSX corpus
 └── examples/                // ported react-pdf examples as TSX + the Go programs that render them
 ```
@@ -299,7 +299,7 @@ feast/
 | `github.com/pdfcpu/pdfcpu` | Apache-2.0 | **Test-only:** validate generated PDFs in CI |
 | `react` (vendored, not a dependency) | MIT | `react.production.min.js` 18.3.1 is vendored + embedded for goja (see `internal/jsruntime/assets/VENDOR.md`); no npm package is published or required |
 
-Explicitly rejected: unidoc/unipdf (commercial), seehuhn.de/go/pdf (GPL — do not read its code), oksvg (stale), gopdf (insufficient control), **templ (§4 — no React/JSX execution, HTML-string output)**, **v8go (cgo — goja is enough and keeps feast pure-Go/cgo-free)**, **Node sidecar (dropped 2026-07 — goja runs React in-process, so no second engine is needed)**.
+Explicitly rejected: unidoc/unipdf (commercial), seehuhn.de/go/pdf (GPL — do not read its code), oksvg (stale), gopdf (insufficient control), **templ (§4 — no React/JSX execution, HTML-string output)**, **v8go (cgo — goja is enough and keeps waffle pure-Go/cgo-free)**, **Node sidecar (dropped 2026-07 — goja runs React in-process, so no second engine is needed)**.
 
 **folio note (carried from v1):** `github.com/carlos7ags/folio` (Apache-2.0, active) already does flexbox→paginated-PDF in Go with its own writer. Its API is HTML/CSS-first, single-maintainer, pre-1.0, and not react-pdf-shaped. Decision stands: greenfield with folio as a design reference; 1-day code read budgeted in Phase 0; lifting patterns (not code wholesale) allowed.
 
@@ -310,7 +310,7 @@ Explicitly rejected: unidoc/unipdf (commercial), seehuhn.de/go/pdf (GPL — do n
 (Carried from plan v1 with ingest-related adjustments; unchanged sections kept in full because this is the build spec.)
 
 ### 6.1 Contract ingest & tree model (`internal/contract`, `internal/tree`)
-- Parse `feast-tree/v1` JSON → internal typed nodes; prop parsing per primitive (booleans, numbers, unions like Page `size`); style values kept raw for the stylesheet subsystem.
+- Parse `waffle-tree/v1` JSON → internal typed nodes; prop parsing per primitive (booleans, numbers, unions like Page `size`); style values kept raw for the stylesheet subsystem.
 - `{"$cb": id}` values become `CallbackRef`s; documents listing callbacks **require** an evaluator — `RenderTree` with callbacks and no evaluator fails with a clear error naming the offending elements (except template-string render props, which are data).
 - Structural validation with element paths (e.g. `Document > Page[0] > View[2] > Text: fontFamily "Roboto" not registered`): Text children are strings/Text/Link; Page only under Document; SVG children only under Svg; Note children string-only.
 - `Clone()` deep-copy (pagination splits trees; callback results graft subtrees).
@@ -404,7 +404,7 @@ Per page: backgrounds (borderRadius-aware rounded rects), borders (per-side widt
 1. **Unit tests per subsystem:** stylesheet (units, shorthands, colors, inheritance), flexbox (Yoga fixtures + gap), textkit (textkit's own test strings, hyphenation, justification ratios, bidi order), svgparse (W3C corpus), pdf writer (spec-valid dicts per feature), contract (round-trip, versioning, unknown-prop warnings).
 2. **Golden PDF tests:** deterministic output (fixed CreationDate, seeded IDs) → byte-compare ~40 scenario docs (one per feature cluster), fed as hand-authored contract JSON so they run before the npm package exists. Regeneration script with review diff.
 3. **pdfcpu validate in CI:** every generated PDF must pass strict validation.
-4. **Shared-TSX parity corpus (the headline test):** the same TSX files (ported react-pdf examples: resume, page-wrap, fractals, svg, form, page numbers) rendered through **both** `@react-pdf/renderer` 4.5.1 (Node job) and feast (`@feast/react` → engine). Diff (a) extracted text + positions (pdfcpu/pdftotext), (b) rasterized pages (pdftoppm) with perceptual diff, tolerance-based. Separate CI job (Node + poppler); non-blocking initially, promoted to blocking once stable.
+4. **Shared-TSX parity corpus (the headline test):** the same TSX files (ported react-pdf examples: resume, page-wrap, fractals, svg, form, page numbers) rendered through **both** `@react-pdf/renderer` 4.5.1 (Node job) and waffle (`@waffle/react` → engine). Diff (a) extracted text + positions (pdfcpu/pdftotext), (b) rasterized pages (pdftoppm) with perceptual diff, tolerance-based. Separate CI job (Node + poppler); non-blocking initially, promoted to blocking once stable.
 5. **JS-side tests:** reconciler serialization snapshots (JSX → contract JSON), callback-table behavior, CLI bundle output runs on goja in CI (the compatibility canary).
 6. **Cross-mode equivalence:** the same template rendered via embedded runtime, static tree, and sidecar must produce byte-identical PDFs (for docs without VM-only features).
 7. **Fuzzing:** style parser, svg path parser, contract parser, PDF string/name escaping.
@@ -418,7 +418,7 @@ Per page: backgrounds (borderRadius-aware rounded rects), borders (per-side widt
 All §2.1 components incl. forms and SVG; all §2.3 style props/units/media queries/inheritance; pagination semantics incl. render props (VM modes), fixed/break/minPresenceAhead/orphans/widows; `Font.register` + hyphenation callback + emoji source; JPEG/PNG/SVG images incl. srcSet; links/ids/hitSlop/nested bookmarks; encryption + permissions; metadata; debug mode. **Hooks, context, composition: full parity — it's real React.**
 
 ### Adapted (same capability, different mechanism)
-| react-pdf | feast | Why |
+| react-pdf | waffle | Why |
 |---|---|---|
 | `renderToFile/Buffer/Stream` (Node) | `tpl.Render(ctx, props, io.Writer)` / `RenderTree` in Go | Rendering moved to Go — the point of the project |
 | `onRender` | Accepted, no-op; `RenderInfo` return | No JS render loop to call back into |
@@ -428,7 +428,7 @@ All §2.1 components incl. forms and SVG; all §2.3 style props/units/media quer
 ### Gaps — flagged (decide at review)
 | Gap | Detail | Mitigation |
 |---|---|---|
-| **PDFViewer / PDFDownloadLink / BlobProvider / usePDF** | Browser React components; rendering doesn't happen in a browser | `feast-react dev` preview; source-compatible docs can be previewed in real react-pdf during development (engine-divergence caveat documented) |
+| **PDFViewer / PDFDownloadLink / BlobProvider / usePDF** | Browser React components; rendering doesn't happen in a browser | `waffle-react dev` preview; source-compatible docs can be previewed in real react-pdf during development (engine-divergence caveat documented) |
 | **Static-tree mode limits** | Arbitrary render-prop subtrees, hyphenation callbacks and auto-sized Canvas paint need a VM mode; static mode gets template-string render props only | Embedded runtime is the primary mode precisely so these work; static mode limits documented + serializer warnings |
 | **React-on-goja risk** | React/reconciler compatibility with goja not yet proven for our exact stack | Phase R1 spike gate; fallback ladder goja → v8go (cgo tag) → sidecar; contract makes engine choice a config change |
 | **Tagged PDF / accessibility, XMP, PDF/A** | react-pdf lacks these too | Writer leaves seams; post-v1 |
@@ -473,9 +473,9 @@ Each phase ends with green CI (unit + golden + pdfcpu-validate) and a runnable e
 
 **Phase 1 — PDF writer core.** Objects/xref/streams/Info/catalog/page tree; content-stream builder (paths, colors, gstate, transforms); standard-14 Type1 text with AFM widths; Flate. ✅ *Accept: "Hello world A4" golden passes; validates; opens in Preview/Acrobat/pdf.js.*
 
-**Phase 2 — Contract + styles + flexbox + static paint.** `feast-tree/v1` schema + parser (callbacks parsed but evaluator optional); internal tree + validation; stylesheet (react-pdf-shaped values: units, shorthands, colors, media queries, inheritance); vendored flexbox + gap backport + fixture tests; layout steps resolveStyles→resolveDimensions for View-only trees; paint backgrounds/borders/radius/opacity/transforms/debug overlays; `RenderTree` API v0. Tests feed hand-authored JSON. ✅ *Accept: flexbox scenario goldens (gap, %, absolute, aspectRatio) match Yoga-fixture expectations.*
+**Phase 2 — Contract + styles + flexbox + static paint.** `waffle-tree/v1` schema + parser (callbacks parsed but evaluator optional); internal tree + validation; stylesheet (react-pdf-shaped values: units, shorthands, colors, media queries, inheritance); vendored flexbox + gap backport + fixture tests; layout steps resolveStyles→resolveDimensions for View-only trees; paint backgrounds/borders/radius/opacity/transforms/debug overlays; `RenderTree` API v0. Tests feed hand-authored JSON. ✅ *Accept: flexbox scenario goldens (gap, %, absolute, aspectRatio) match Yoga-fixture expectations.*
 
-**Phase 3 — `@feast/react` npm package.** Components + TS types mirroring react-pdf; reconciler host config; serializer + callback table; Font/StyleSheet shims; esbuild CLI (`build`, `--emit-tree`, `--inline-assets`). Snapshot tests: react-pdf example JSX → contract JSON → `RenderTree`. ✅ *Accept: resume-example TSX (text-free parts) renders via the full JS→Go path.* (Parallelizable with Phase 4 after the contract freezes at the end of Phase 2.)
+**Phase 3 — `@waffle/react` npm package.** Components + TS types mirroring react-pdf; reconciler host config; serializer + callback table; Font/StyleSheet shims; esbuild CLI (`build`, `--emit-tree`, `--inline-assets`). Snapshot tests: react-pdf example JSX → contract JSON → `RenderTree`. ✅ *Accept: resume-example TSX (text-free parts) renders via the full JS→Go path.* (Parallelizable with Phase 4 after the contract freezes at the end of Phase 2.)
 
 **Phase 4 — Text.** Fontstore (TTF/OTF/WOFF/WOFF2, weights, fallback lists); textkit port (§6.4 full pipeline); measure-func integration; Type0 subset embedding + ToUnicode; spacing/lineHeight/maxLines/ellipsis/textTransform/sub-super/decoration; hyphenation (soft hyphen + en-US). ✅ *Accept: typography goldens; text-extraction diff vs react-pdf corpus for the resume example ≤ tolerance.*
 
@@ -487,7 +487,7 @@ Each phase ends with green CI (unit + golden + pdfcpu-validate) and a runnable e
 
 **Phase 8 — Canvas + gradients.** Recording painter (JS side + Go replay), full method list §2.6; axial/radial shadings shared with SVG gradients. ✅ *Accept: fractals example (Canvas-based) matches corpus via VM mode.*
 
-**Phase 9 — Forms, encryption, polish.** AcroForm widgets; passwords + permissions across all four cipher levels; emoji source; RTL staged support; `feast-react dev` preview loop; viewer smoke matrix; docs (component/style/font reference mirroring react-pdf.org structure) + migration guide. ✅ *Accept: parity matrix §8 checked off.*
+**Phase 9 — Forms, encryption, polish.** AcroForm widgets; passwords + permissions across all four cipher levels; emoji source; RTL staged support; `waffle-react dev` preview loop; viewer smoke matrix; docs (component/style/font reference mirroring react-pdf.org structure) + migration guide. ✅ *Accept: parity matrix §8 checked off.*
 
 **Phase 10 — Parity promotion.** Shared-TSX corpus job promoted to blocking; cross-mode equivalence tests (§7.6) blocking; cut v0.1.
 
@@ -497,10 +497,10 @@ Each phase ends with green CI (unit + golden + pdfcpu-validate) and a runnable e
 
 ## 11. Open questions for review (answer before Phase 0)
 
-1. Names: Go module `github.com/swish/feast`? npm `@feast/react`? Public or internal?
+1. Names: Go module `github.com/swish/waffle`? npm `@waffle/react`? Public or internal?
 2. Confirm goja-first engine strategy (pure Go, spike-gated) vs sidecar-first (zero engine risk, but production needs Node) — plan assumes goja-first with the fallback ladder.
 3. Is RTL/Arabic a v1 blocker for your documents, or acceptable staged (§8)?
 4. Forms + encryption (Phase 9): needed for v1, or can they slip post-v1?
 5. TypeScript-only authoring guidance, or first-class plain-JS support in docs/CLI too? (TS recommended.)
-6. Minimum Go version (propose 1.24); minimum React version to support in `@feast/react` (propose 18+).
+6. Minimum Go version (propose 1.24); minimum React version to support in `@waffle/react` (propose 18+).
 7. folio: confirm greenfield-with-reference after the Phase 0 code read.

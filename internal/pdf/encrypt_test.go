@@ -15,8 +15,8 @@ import (
 func helloOpts() Options {
 	return Options{
 		Title:        "Hello",
-		Creator:      "feast",
-		Producer:     "feast",
+		Creator:      "waffle",
+		Producer:     "waffle",
 		PDFVersion:   "1.4",
 		CreationDate: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 	}

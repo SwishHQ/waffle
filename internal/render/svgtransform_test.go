@@ -33,7 +33,7 @@ func TestParseSVGTransform(t *testing.T) {
 
 // A <G transform> concatenates a CTM around its children.
 func TestRenderSVGGroupTransform(t *testing.T) {
-	doc := `{"version":"feast-tree/v1","document":{"children":[
+	doc := `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[200,200]},"children":[
 			{"type":"SVG","props":{"style":{"width":100,"height":100},"viewBox":"0 0 100 100"},"children":[
 				{"type":"G","props":{"transform":"translate(10, 20)"},"children":[

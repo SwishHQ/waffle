@@ -28,7 +28,7 @@ func pngDataURI(t *testing.T, w, h int) string {
 
 func TestRenderImage(t *testing.T) {
 	uri := pngDataURI(t, 200, 100) // 2:1 aspect
-	doc := `{"version":"feast-tree/v1","document":{"children":[
+	doc := `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[300,300]},"children":[
 			{"type":"IMAGE","props":{"src":"` + uri + `","style":{"width":100}}}
 		]}

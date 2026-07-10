@@ -7,20 +7,20 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/swish/feast"
+	"github.com/swish/waffle"
 )
 
 const doc = `{
-  "version": "feast-tree/v1",
+  "version": "waffle-tree/v1",
   "document": {
-    "props": { "title": "feast text demo", "author": "feast" },
+    "props": { "title": "waffle text demo", "author": "waffle" },
     "children": [
       { "type": "PAGE",
         "props": { "size": "A6", "style": { "padding": 28, "backgroundColor": "#f8f9fa", "gap": 14 } },
         "children": [
           { "type": "TEXT",
             "props": { "style": { "fontFamily": "Helvetica", "fontWeight": "bold", "fontSize": 34, "color": "#1d3557" } },
-            "children": [ { "type": "TEXT_INSTANCE", "value": "feast" } ] },
+            "children": [ { "type": "TEXT_INSTANCE", "value": "waffle" } ] },
 
           { "type": "TEXT",
             "props": { "style": { "fontFamily": "Times-Roman", "fontStyle": "italic", "fontSize": 13, "color": "#457b9d" } },
@@ -59,7 +59,7 @@ func main() {
 	}
 	defer f.Close()
 
-	info, err := feast.RenderTree(context.Background(), []byte(doc), f)
+	info, err := waffle.RenderTree(context.Background(), []byte(doc), f)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

@@ -1,17 +1,17 @@
 // Package layout is the layout pipeline: it resolves styles and page sizes,
 // drives the flexbox engine, and produces a tree of positioned boxes ready for
-// painting. This is feast's analogue of react-pdf's layout steps
+// painting. This is waffle's analogue of react-pdf's layout steps
 // (resolveStyles → resolveInheritance → resolvePageSizes → resolveDimensions),
 // for the View-only subset; text measurement and pagination land in later phases.
 package layout
 
 import (
-	"github.com/swish/feast/internal/contract"
-	"github.com/swish/feast/internal/flexbox"
-	"github.com/swish/feast/internal/fontstore"
-	"github.com/swish/feast/internal/pdf"
-	"github.com/swish/feast/internal/stylesheet"
-	"github.com/swish/feast/internal/tree"
+	"github.com/swish/waffle/internal/contract"
+	"github.com/swish/waffle/internal/flexbox"
+	"github.com/swish/waffle/internal/fontstore"
+	"github.com/swish/waffle/internal/pdf"
+	"github.com/swish/waffle/internal/stylesheet"
+	"github.com/swish/waffle/internal/tree"
 )
 
 // Rect is an absolute box in page coordinates (points), border-box.

@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/swish/feast/internal/tree"
+	"github.com/swish/waffle/internal/tree"
 )
 
 // svgViewBoxSize returns the intrinsic size of an Svg node: its viewBox width and

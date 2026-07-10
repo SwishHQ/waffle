@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/swish/feast/internal/stylesheet"
-	"github.com/swish/feast/internal/tree"
+	"github.com/swish/waffle/internal/stylesheet"
+	"github.com/swish/waffle/internal/tree"
 )
 
 // pageSizes lists named page sizes in points (portrait orientation). A subset of

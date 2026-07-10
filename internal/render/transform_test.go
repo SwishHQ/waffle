@@ -7,7 +7,7 @@ import (
 )
 
 func transformDoc(tf string) string {
-	return `{"version":"feast-tree/v1","document":{"children":[
+	return `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[200,200]},"children":[
 			{"type":"VIEW","props":{"style":{"width":40,"height":40,"backgroundColor":"#ff0000","transform":"` + tf + `"}}}
 		]}
@@ -49,7 +49,7 @@ func TestRenderTransformRotate(t *testing.T) {
 
 // A box with no transform must not emit a CTM (a plain background fill is just re/f).
 func TestRenderNoTransformNoCM(t *testing.T) {
-	doc := `{"version":"feast-tree/v1","document":{"children":[
+	doc := `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[200,200]},"children":[
 			{"type":"VIEW","props":{"style":{"width":40,"height":40,"backgroundColor":"#ff0000"}}}
 		]}

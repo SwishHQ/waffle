@@ -1,4 +1,4 @@
-package feast
+package waffle
 
 import (
 	"bytes"
@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-const boxesDoc = `{"version":"feast-tree/v1","document":{"props":{"title":"Boxes"},"children":[
+const boxesDoc = `{"version":"waffle-tree/v1","document":{"props":{"title":"Boxes"},"children":[
 	{"type":"PAGE","props":{"size":[240,180],"style":{"padding":20,"backgroundColor":"#eeeeee"}},"children":[
 		{"type":"VIEW","props":{"style":{"flexDirection":"row","gap":10,"height":60}},"children":[
 			{"type":"VIEW","props":{"style":{"flexGrow":1,"backgroundColor":"#e63946","border":"2pt solid #1d3557"}}},
@@ -78,7 +78,7 @@ func findPDFCPU() string {
 
 // A Document with a userPassword must produce an encrypted, still-valid PDF.
 func TestRenderTreeEncrypted(t *testing.T) {
-	doc := `{"version":"feast-tree/v1","document":{"props":{"userPassword":"secret"},"children":[
+	doc := `{"version":"waffle-tree/v1","document":{"props":{"userPassword":"secret"},"children":[
 		{"type":"PAGE","props":{"size":[200,200]},"children":[
 			{"type":"TEXT","props":{"style":{"fontSize":14}},"children":[{"type":"TEXT_INSTANCE","value":"locked"}]}
 		]}

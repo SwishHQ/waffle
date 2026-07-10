@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/swish/feast/internal/contract"
+	"github.com/swish/waffle/internal/contract"
 )
 
 // mk builds a node of the given type with children, wiring Parent pointers.
@@ -61,7 +61,7 @@ func TestBuildFromContract(t *testing.T) {
 // sampleTree mirrors the contract package's fixture (kept local to avoid
 // cross-package test coupling).
 const sampleTree = `{
-  "version": "feast-tree/v1",
+  "version": "waffle-tree/v1",
   "callbacks": ["cb_0", "cb_1"],
   "document": {
     "props": { "title": "Invoice" },

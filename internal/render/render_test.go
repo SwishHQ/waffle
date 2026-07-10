@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/swish/feast/internal/contract"
-	"github.com/swish/feast/internal/layout"
-	"github.com/swish/feast/internal/tree"
+	"github.com/swish/waffle/internal/contract"
+	"github.com/swish/waffle/internal/layout"
+	"github.com/swish/waffle/internal/tree"
 )
 
 func layoutFromJSON(t *testing.T, doc string) *layout.Result {
@@ -52,7 +52,7 @@ func inflateStreams(t *testing.T, data []byte) string {
 
 func TestRenderYFlip(t *testing.T) {
 	// A 50x30 red box at the page's top-left corner. Page 200x200.
-	res := layoutFromJSON(t, `{"version":"feast-tree/v1","document":{"children":[
+	res := layoutFromJSON(t, `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[200,200]},"children":[
 			{"type":"VIEW","props":{"style":{"width":50,"height":30,"backgroundColor":"#ff0000"}}}
 		]}
@@ -75,7 +75,7 @@ func TestRenderYFlip(t *testing.T) {
 }
 
 func TestRenderBackgroundAndBorders(t *testing.T) {
-	res := layoutFromJSON(t, `{"version":"feast-tree/v1","document":{"children":[
+	res := layoutFromJSON(t, `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[100,100]},"children":[
 			{"type":"VIEW","props":{"style":{"width":40,"height":40,"backgroundColor":"blue","border":"2pt solid black"}}}
 		]}
@@ -96,7 +96,7 @@ func TestRenderBackgroundAndBorders(t *testing.T) {
 }
 
 func TestRenderEmptyPage(t *testing.T) {
-	res := layoutFromJSON(t, `{"version":"feast-tree/v1","document":{"children":[
+	res := layoutFromJSON(t, `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[100,100]},"children":[]}
 	]}}`)
 	var buf bytes.Buffer
@@ -109,10 +109,10 @@ func TestRenderEmptyPage(t *testing.T) {
 }
 
 func TestRenderText(t *testing.T) {
-	res := layoutFromJSON(t, `{"version":"feast-tree/v1","document":{"children":[
+	res := layoutFromJSON(t, `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[300,100]},"children":[
 			{"type":"TEXT","props":{"style":{"fontSize":24,"color":"#0000ff"}},"children":[
-				{"type":"TEXT_INSTANCE","value":"Hello feast"}
+				{"type":"TEXT_INSTANCE","value":"Hello waffle"}
 			]}
 		]}
 	]}}`)
@@ -121,7 +121,7 @@ func TestRenderText(t *testing.T) {
 		t.Fatal(err)
 	}
 	content := inflateStreams(t, buf.Bytes())
-	if !strings.Contains(content, "(Hello feast) Tj") {
+	if !strings.Contains(content, "(Hello waffle) Tj") {
 		t.Errorf("missing text show op in:\n%s", content)
 	}
 	if !strings.Contains(content, "Tf") {
@@ -134,7 +134,7 @@ func TestRenderText(t *testing.T) {
 
 func TestRenderTextAlignCenter(t *testing.T) {
 	// Short centered text in a wide box: the line's x origin must be offset right.
-	res := layoutFromJSON(t, `{"version":"feast-tree/v1","document":{"children":[
+	res := layoutFromJSON(t, `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[400,60]},"children":[
 			{"type":"TEXT","props":{"style":{"fontSize":12,"textAlign":"center","width":"100%"}},"children":[
 				{"type":"TEXT_INSTANCE","value":"Centered"}
@@ -155,7 +155,7 @@ func TestRenderTextAlignCenter(t *testing.T) {
 }
 
 func TestRenderJustify(t *testing.T) {
-	res := layoutFromJSON(t, `{"version":"feast-tree/v1","document":{"children":[
+	res := layoutFromJSON(t, `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[140,300]},"children":[
 			{"type":"TEXT","props":{"style":{"fontSize":12,"textAlign":"justify"}},"children":[
 				{"type":"TEXT_INSTANCE","value":"The quick brown fox jumps over the lazy dog several times over"}
@@ -178,7 +178,7 @@ func TestRenderJustify(t *testing.T) {
 }
 
 func TestRenderSVG(t *testing.T) {
-	res := layoutFromJSON(t, `{"version":"feast-tree/v1","document":{"children":[
+	res := layoutFromJSON(t, `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[200,200]},"children":[
 			{"type":"SVG","props":{"style":{"width":100,"height":100},"viewBox":"0 0 100 100"},"children":[
 				{"type":"RECT","props":{"x":0,"y":0,"width":100,"height":100,"fill":"#457b9d"}},
@@ -207,7 +207,7 @@ func TestRenderSVG(t *testing.T) {
 }
 
 func TestRenderCanvas(t *testing.T) {
-	res := layoutFromJSON(t, `{"version":"feast-tree/v1","document":{"children":[
+	res := layoutFromJSON(t, `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[200,200]},"children":[
 			{"type":"CANVAS","props":{"style":{"width":100,"height":100},"paint":[
 				{"op":"fillColor","args":["#e63946"]},

@@ -1,4 +1,4 @@
-module github.com/swish/feast
+module github.com/swish/waffle
 
 go 1.24
 

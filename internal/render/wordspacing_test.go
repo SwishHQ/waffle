@@ -8,7 +8,7 @@ import (
 
 // wordSpacing emits a Tw (word-spacing) operator with the resolved value.
 func TestRenderWordSpacing(t *testing.T) {
-	res := layoutFromJSON(t, `{"version":"feast-tree/v1","document":{"children":[
+	res := layoutFromJSON(t, `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[400,80]},"children":[
 			{"type":"TEXT","props":{"style":{"fontSize":14,"wordSpacing":6}},"children":[
 				{"type":"TEXT_INSTANCE","value":"one two three"}

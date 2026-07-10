@@ -1,7 +1,7 @@
 # Phase R1 build notes — goja, the in-process JS engine ✅ SPIKE PASSED
 
 **Decision (2026-07): goja is the only JS engine.** No Node sidecar, no v8go, no
-cgo. React runs inside the Go process, so feast is a single self-contained Go
+cgo. React runs inside the Go process, so waffle is a single self-contained Go
 library: `go get`, author in JSX, get a PDF — Node is never required.
 
 ## What landed
@@ -10,9 +10,9 @@ library: `go get`, author in JSX, get a PDF — Node is never required.
   - **esbuild** (`github.com/evanw/esbuild/pkg/api`) transpiles the user's
     JSX/TSX and bundles it, entirely in memory, to an ES2015 IIFE. An in-memory
     plugin resolves `react`, `react/jsx-runtime`, `react/jsx-dev-runtime` and
-    `@feast/react` from embedded strings — no filesystem, no node_modules.
+    `@waffle/react` from embedded strings — no filesystem, no node_modules.
   - **goja** (`github.com/dop251/goja`) executes the IIFE and calls
-    `__feast.render(propsJSON)` → `feast-tree/v1` JSON.
+    `__waffle.render(propsJSON)` → `waffle-tree/v1` JSON.
   - `Compile(source, opts) → *Program`; `Program.Render(propsJSON) → treeJSON`.
     A `Program` compiles once and renders many times (fresh VM per render, so
     it's concurrency-safe).
@@ -22,14 +22,14 @@ library: `go get`, author in JSX, get a PDF — Node is never required.
   semantics). Importing React explicitly still works.
 - **Vendored React** — `assets/react.production.min.js` (10.7 KB, MIT). Verified
   it has no `process`/DOM references, so it loads on goja with zero shims.
-- **Embedded `@feast/react`** — `assets/feast-react.js` (primitives + single-pass
+- **Embedded `@waffle/react`** — `assets/waffle-react.js` (primitives + single-pass
   renderer + Font/StyleSheet + serializer) is the whole runtime as one module and
   the sole source of truth. (An earlier `packages/react/` npm mirror was removed
-  2026-07 — feast is a pure Go library; see `assets/VENDOR.md`.)
+  2026-07 — waffle is a pure Go library; see `assets/VENDOR.md`.)
 - **Public API** (`template.go`): `LoadTemplate`/`Template.Render`/`Template.Tree`
   and one-shot `RenderReact`. `Render` marshals Go props → JSON → goja → tree →
   the existing `RenderTree` pipeline → PDF.
-- **CLI** (`cmd/feast`): `feast doc.jsx out.pdf [props.json]` runs the goja path;
+- **CLI** (`cmd/waffle`): `waffle doc.jsx out.pdf [props.json]` runs the goja path;
   `.json` input still uses `RenderTree`.
 - **Example** (`examples/react`): a data-driven invoice — JSX authored, Go
   supplies line items as props, renders `invoice.pdf` in-process.
@@ -41,7 +41,7 @@ library: `go get`, author in JSX, get a PDF — Node is never required.
 - `template_test.go`: a full react-pdf-style document (styles, `.map`, fixed
   page-number footer) compiled and rendered to a **pdfcpu-strict-valid** PDF,
   plus a second render with different props reusing the compiled template.
-- `go run ./examples/react` and `feast invoice.jsx …` both validate strict.
+- `go run ./examples/react` and `waffle invoice.jsx …` both validate strict.
 
 ## Toolchain care
 
@@ -52,9 +52,9 @@ library: `go get`, author in JSX, get a PDF — Node is never required.
 ## Hooks + context (done ✅)
 
 Rather than drag `react-reconciler` (and `scheduler` + an event loop) into goja,
-feast renders a document as a **pure function of props in one synchronous pass**
+waffle renders a document as a **pure function of props in one synchronous pass**
 with a hooks dispatcher installed — the right model for a file (there is no
-screen to update). Implemented in the embedded runtime `assets/feast-react.js`:
+screen to update). Implemented in the embedded runtime `assets/waffle-react.js`:
 
 - Sets `React …ReactCurrentDispatcher.current` to a dispatcher supporting
   `useState`, `useReducer`, `useMemo`, `useCallback`, `useRef`, `useContext`,
@@ -85,7 +85,7 @@ dropped. Built and tested this pass:
 - `jsruntime.Instance` keeps the goja VM alive after the initial render:
   `Program.Instantiate(props) → *Instance`; `Instance.Tree()` is the JSON;
   `Instance.EvalCallback(id, ctxJSON)` runs the closure with the page context and
-  returns a JSON array of feast-tree nodes. `Program.Render` is now a one-shot
+  returns a JSON array of waffle-tree nodes. `Program.Render` is now a one-shot
   wrapper over it. Evaluating a callback keeps the registry intact so callbacks
   don't clobber each other; each is re-evaluable per page.
 - Tested under goja (`internal/jsruntime/callbacks_test.go`) — string and element
@@ -130,7 +130,7 @@ style governs); Canvas `paint` and hyphenation callbacks are still to come.
   `resolveCanvasPaint` (post-layout, once the canvas frame is known) evaluates and
   attaches `box.Canvas`. The width/height passed in are the resolved frame size.
 - Tested: `jsruntime` (painter records `{op,args}`, w/h threaded), `layout`
-  (stub → `box.Canvas` at frame size), and `feast`
+  (stub → `box.Canvas` at frame size), and `waffle`
   (`TestCanvasPaintRealEvaluator` rect+circle via the real VM;
   `TestRenderReactCanvasPaintPDF` a strict-valid PDF).
 

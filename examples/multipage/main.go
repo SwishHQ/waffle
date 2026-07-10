@@ -1,6 +1,6 @@
 // Command multipage builds a data-driven document (24 rows) that overflows a
 // small page, demonstrating automatic pagination. The tree is generated in Go —
-// the same shape @feast/react produces from a JSX .map() over data.
+// the same shape @waffle/react produces from a JSX .map() over data.
 package main
 
 import (
@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/swish/feast"
+	"github.com/swish/waffle"
 )
 
 var palette = []string{"#e63946", "#457b9d", "#2a9d8f", "#e9c46a", "#f4a261", "#8338ec"}
@@ -27,16 +27,16 @@ func main() {
 				"type":  "TEXT",
 				"props": map[string]any{"style": map[string]any{"color": "#ffffff", "fontSize": 11, "fontWeight": "bold"}},
 				"children": []any{map[string]any{
-					"type": "TEXT_INSTANCE", "value": fmt.Sprintf("Row %02d — feast automatic pagination", i),
+					"type": "TEXT_INSTANCE", "value": fmt.Sprintf("Row %02d — waffle automatic pagination", i),
 				}},
 			}},
 		})
 	}
 
 	doc := map[string]any{
-		"version": "feast-tree/v1",
+		"version": "waffle-tree/v1",
 		"document": map[string]any{
-			"props": map[string]any{"title": "feast pagination demo"},
+			"props": map[string]any{"title": "waffle pagination demo"},
 			"children": []any{map[string]any{
 				"type":     "PAGE",
 				"props":    map[string]any{"size": "A7", "style": map[string]any{"padding": 16, "backgroundColor": "#f8f9fa"}},
@@ -56,7 +56,7 @@ func main() {
 		os.Exit(1)
 	}
 	defer f.Close()
-	info, err := feast.RenderTree(context.Background(), data, f)
+	info, err := waffle.RenderTree(context.Background(), data, f)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

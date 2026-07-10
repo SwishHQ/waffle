@@ -1,4 +1,4 @@
-package feast
+package waffle
 
 import (
 	"bytes"
@@ -11,9 +11,9 @@ import (
 
 	"golang.org/x/image/font/gofont/goregular"
 
-	"github.com/swish/feast/internal/contract"
-	"github.com/swish/feast/internal/layout"
-	"github.com/swish/feast/internal/tree"
+	"github.com/swish/waffle/internal/contract"
+	"github.com/swish/waffle/internal/layout"
+	"github.com/swish/waffle/internal/tree"
 )
 
 // A complete react-pdf-style document authored in JSX: primitive imports, a
@@ -22,7 +22,7 @@ import (
 // goja) — this is the project's premise: write JSX, get a Go-rendered PDF, no
 // Node.js in the loop.
 const reactDoc = `
-import { Document, Page, View, Text } from '@feast/react';
+import { Document, Page, View, Text } from '@waffle/react';
 
 const Badge = ({ label, color }) => (
   <Text style={{ fontSize: 11, color, border: '1pt solid ' + color, padding: 5 }}>{label}</Text>
@@ -30,11 +30,11 @@ const Badge = ({ label, color }) => (
 
 export default function Report({ title, features }) {
   return (
-    <Document title={title} author="feast">
+    <Document title={title} author="waffle">
       <Page size="A6" style={{ padding: 24, backgroundColor: '#f8f9fa', gap: 12 }}>
         <Text style={{ fontSize: 22, color: '#1d3557' }}>{title}</Text>
         <Text style={{ fontSize: 12, color: '#457b9d' }}>
-          Authored in React, rendered by the feast Go engine via goja.
+          Authored in React, rendered by the waffle Go engine via goja.
         </Text>
         <View style={{ flexDirection: 'row', gap: 8 }}>
           {features.map((f, i) => <Badge key={i} label={f[0]} color={f[1]} />)}
@@ -54,7 +54,7 @@ func TestRenderReactToPDF(t *testing.T) {
 	}
 
 	props := map[string]any{
-		"title": "feast + React (goja)",
+		"title": "waffle + React (goja)",
 		"features": [][]string{
 			{"flexbox", "#e63946"},
 			{"text", "#2a9d8f"},
@@ -86,7 +86,7 @@ func TestRenderReactToPDF(t *testing.T) {
 		t.Errorf("second render did not produce a PDF")
 	}
 
-	// Strict-validate the goja-rendered PDF (reuses findPDFCPU from feast_test.go).
+	// Strict-validate the goja-rendered PDF (reuses findPDFCPU from waffle_test.go).
 	if bin := findPDFCPU(); bin != "" {
 		p := filepath.Join(t.TempDir(), "react.pdf")
 		if err := os.WriteFile(p, buf.Bytes(), 0o644); err != nil {
@@ -104,7 +104,7 @@ func TestRenderReactToPDF(t *testing.T) {
 // proves the hooks dispatcher + context stack work through the whole goja
 // pipeline, not just at the tree level.
 const hooksDoc = `
-import { Document, Page, View, Text } from '@feast/react';
+import { Document, Page, View, Text } from '@waffle/react';
 import React, { useState, useMemo } from 'react';
 
 const Theme = React.createContext({ fg: '#000', bg: '#fff' });
@@ -180,7 +180,7 @@ func TestRenderReactHooksToPDF(t *testing.T) {
 // page's footer must show that page's number — the callback bridge end to end
 // (real goja VM + layout + pagination).
 const callbackFooterDoc = `
-import { Document, Page, View, Text } from '@feast/react';
+import { Document, Page, View, Text } from '@waffle/react';
 export default function App() {
   const blocks = [1, 2, 3, 4, 5, 6];
   return (
@@ -291,7 +291,7 @@ func itoa(n int) string {
 // A Canvas whose paint prop is a function, drawn via the react-pdf painter API —
 // evaluated on the live VM after layout, then replayed into the PDF.
 const canvasDoc = `
-import { Document, Page, Canvas } from '@feast/react';
+import { Document, Page, Canvas } from '@waffle/react';
 export default function App() {
   return (
     <Document>
@@ -391,13 +391,13 @@ func findCanvasOps(b *layout.Box) []any {
 
 // A block-level <Link> must produce a clickable URI annotation in the PDF.
 const linkDoc = `
-import { Document, Page, View, Link, Text } from '@feast/react';
+import { Document, Page, View, Link, Text } from '@waffle/react';
 export default function App() {
   return (
     <Document>
       <Page size="A7" style={{ padding: 20 }}>
         <View>
-          <Link src="https://feast.example/docs" style={{ width: 160, height: 24 }}>
+          <Link src="https://waffle.example/docs" style={{ width: 160, height: 24 }}>
             <Text style={{ fontSize: 12, color: '#1d3557' }}>Read the docs</Text>
           </Link>
         </View>
@@ -416,7 +416,7 @@ func TestRenderReactLinkAnnotation(t *testing.T) {
 	if _, err := tmpl.Render(context.Background(), nil, &buf); err != nil {
 		t.Fatalf("Render: %v", err)
 	}
-	for _, want := range []string{"/Subtype /Link", "https://feast.example/docs", "/S /URI"} {
+	for _, want := range []string{"/Subtype /Link", "https://waffle.example/docs", "/S /URI"} {
 		if !bytes.Contains(buf.Bytes(), []byte(want)) {
 			t.Errorf("PDF missing %q", want)
 		}
@@ -435,7 +435,7 @@ func TestRenderReactLinkAnnotation(t *testing.T) {
 // Rounded corners end to end: a filled+bordered rounded card and a circular box
 // (borderRadius 50%) must produce a pdfcpu-strict-valid PDF (well-formed paths).
 const roundedDoc = `
-import { Document, Page, View } from '@feast/react';
+import { Document, Page, View } from '@waffle/react';
 export default function App() {
   return (
     <Document>
@@ -474,7 +474,7 @@ func TestRenderReactRoundedPDF(t *testing.T) {
 // opacity end to end: a semi-transparent overlay must produce a strict-valid PDF
 // (well-formed ExtGState / transparency, PDF 1.4+).
 const opacityDoc = `
-import { Document, Page, View, Text } from '@feast/react';
+import { Document, Page, View, Text } from '@waffle/react';
 export default function App() {
   return (
     <Document>
@@ -517,7 +517,7 @@ func TestRenderReactOpacityPDF(t *testing.T) {
 func TestRenderReactCustomFont(t *testing.T) {
 	uri := "data:font/ttf;base64," + base64.StdEncoding.EncodeToString(goregular.TTF)
 	doc := `
-import { Document, Page, Text, Font } from '@feast/react';
+import { Document, Page, Text, Font } from '@waffle/react';
 Font.register({ family: 'MyGo', src: '` + uri + `' });
 export default function App() {
   return (
@@ -597,7 +597,7 @@ func findTextInfo(b *layout.Box, content string) *layout.TextInfo {
 
 // A rotated element must render to a strict-valid PDF (transform CTM applied).
 const transformDoc = `
-import { Document, Page, View, Text } from '@feast/react';
+import { Document, Page, View, Text } from '@waffle/react';
 export default function App() {
   return (
     <Document>
@@ -635,7 +635,7 @@ func TestRenderReactTransformPDF(t *testing.T) {
 
 // An SVG linear gradient authored in JSX must render to a strict-valid PDF.
 const gradientDoc = `
-import { Document, Page, Svg, Defs, LinearGradient, Stop, Rect } from '@feast/react';
+import { Document, Page, Svg, Defs, LinearGradient, Stop, Rect } from '@waffle/react';
 export default function App() {
   return (
     <Document>

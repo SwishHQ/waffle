@@ -29,7 +29,7 @@ func TestImageXObjectValidates(t *testing.T) {
 
 	c := NewContent()
 	c.DrawImage(spec, 10, 10, 100, 100)
-	doc := New(Options{Producer: "feast", CreationDate: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)})
+	doc := New(Options{Producer: "waffle", CreationDate: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)})
 	doc.AddPage(200, 200, c)
 
 	var buf bytes.Buffer

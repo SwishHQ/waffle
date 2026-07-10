@@ -1,4 +1,4 @@
-// Command bench is a feast load test shaped like a Gotenberg docx->PDF
+// Command bench is a waffle load test shaped like a Gotenberg docx->PDF
 // conversion benchmark, so an in-process JSX->PDF render can be compared against
 // a LibreOffice-in-a-sidecar pipeline apples-to-apples. It renders a multi-page
 // offer/appointment letter with a full-page letterhead, embedded fonts, inline
@@ -10,7 +10,7 @@
 // to the same profile Gotenberg is typically sized under (0.25 / 0.5 vCPU,
 // capped memory, swap disabled) via bench.sh, which captures peak memory.
 //
-//	REQUESTS=30 CONCURRENCY=1 ./feast-bench      # reads ./appointment.jsx + ./assets
+//	REQUESTS=30 CONCURRENCY=1 ./waffle-bench      # reads ./appointment.jsx + ./assets
 package main
 
 import (
@@ -25,11 +25,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/swish/feast"
+	"github.com/swish/waffle"
 )
 
 func main() {
-	jsxPath := getenv("FEAST_JSX", "appointment.jsx")
+	jsxPath := getenv("WAFFLE_JSX", "appointment.jsx")
 	src, err := os.ReadFile(jsxPath)
 	if err != nil {
 		fatalf("read %s: %v", jsxPath, err)
@@ -37,7 +37,7 @@ func main() {
 
 	// Compile once — the warm path, mirroring --libreoffice-restart-after=10.
 	compileStart := time.Now()
-	tmpl, err := feast.LoadTemplate(src, feast.TemplateOptions{Filename: jsxPath})
+	tmpl, err := waffle.LoadTemplate(src, waffle.TemplateOptions{Filename: jsxPath})
 	if err != nil {
 		fatalf("compile template: %v", err)
 	}
@@ -106,7 +106,7 @@ func main() {
 	var ms runtime.MemStats
 	runtime.ReadMemStats(&ms)
 
-	fmt.Printf("engine: feast (in-process goja + esbuild; no sidecar, no cgo)\n")
+	fmt.Printf("engine: waffle (in-process goja + esbuild; no sidecar, no cgo)\n")
 	fmt.Printf("document: %s -> PDF %d KB\n", jsxPath, sz.n/1024)
 	fmt.Printf("one-time compile (LoadTemplate): %s\n", rnd(compileDur))
 	fmt.Printf("GOMAXPROCS=%d  numCPU=%d\n", runtime.GOMAXPROCS(0), runtime.NumCPU())
@@ -243,6 +243,6 @@ func mean(ds []time.Duration) time.Duration {
 func rnd(d time.Duration) time.Duration { return d.Round(time.Millisecond) }
 
 func fatalf(format string, a ...any) {
-	fmt.Fprintf(os.Stderr, "feast-bench: "+format+"\n", a...)
+	fmt.Fprintf(os.Stderr, "waffle-bench: "+format+"\n", a...)
 	os.Exit(1)
 }

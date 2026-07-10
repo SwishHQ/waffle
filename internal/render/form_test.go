@@ -8,7 +8,7 @@ import (
 
 // A <TextInput name value> renders an AcroForm text-field widget.
 func TestRenderTextInput(t *testing.T) {
-	doc := `{"version":"feast-tree/v1","document":{"children":[
+	doc := `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[300,200]},"children":[
 			{"type":"TEXT_INPUT","props":{"name":"fullName","value":"Ada Lovelace","style":{"width":200,"height":24,"fontSize":12}}}
 		]}
@@ -28,7 +28,7 @@ func TestRenderTextInput(t *testing.T) {
 
 // A TextInput without a name is skipped (no field, no AcroForm).
 func TestRenderTextInputNoName(t *testing.T) {
-	doc := `{"version":"feast-tree/v1","document":{"children":[
+	doc := `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[300,200]},"children":[
 			{"type":"TEXT_INPUT","props":{"value":"x","style":{"width":100,"height":20}}}
 		]}
@@ -45,7 +45,7 @@ func TestRenderTextInputNoName(t *testing.T) {
 
 // A <Checkbox name checked> renders an AcroForm button widget with appearances.
 func TestRenderCheckbox(t *testing.T) {
-	doc := `{"version":"feast-tree/v1","document":{"children":[
+	doc := `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[200,200]},"children":[
 			{"type":"CHECKBOX","props":{"name":"subscribe","checked":true,"style":{"width":16,"height":16}}}
 		]}
@@ -65,7 +65,7 @@ func TestRenderCheckbox(t *testing.T) {
 
 // A <Select options> renders a combo (dropdown) choice field; <List> a list box.
 func TestRenderSelectAndList(t *testing.T) {
-	doc := `{"version":"feast-tree/v1","document":{"children":[
+	doc := `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[300,300]},"children":[
 			{"type":"SELECT","props":{"name":"lang","value":"go","options":["go","rust",{"value":"ts","label":"TypeScript"}],"style":{"width":150,"height":20}}},
 			{"type":"LIST","props":{"name":"tags","options":["a","b"],"style":{"width":150,"height":40}}}

@@ -7,7 +7,7 @@ import (
 )
 
 const sampleTree = `{
-  "version": "feast-tree/v1",
+  "version": "waffle-tree/v1",
   "callbacks": ["cb_0", "cb_1"],
   "document": {
     "props": { "title": "Invoice", "pdfVersion": "1.4" },
@@ -36,7 +36,7 @@ func TestParseSample(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Parse: %v", err)
 	}
-	if tree.Version != "feast-tree/v1" {
+	if tree.Version != "waffle-tree/v1" {
 		t.Errorf("version = %q", tree.Version)
 	}
 	if got := tree.Document.Props["title"]; got != "Invoice" {
@@ -107,9 +107,9 @@ func TestVersionGating(t *testing.T) {
 		version string
 		wantErr bool
 	}{
-		{"v1", "feast-tree/v1", false},
-		{"v1 minor", "feast-tree/v1.5", false},
-		{"v2", "feast-tree/v2", true},
+		{"v1", "waffle-tree/v1", false},
+		{"v1 minor", "waffle-tree/v1.5", false},
+		{"v2", "waffle-tree/v2", true},
 		{"missing", "", true},
 		{"garbage", "not-a-version", true},
 	}
@@ -128,7 +128,7 @@ func TestVersionGating(t *testing.T) {
 }
 
 func TestUnknownTypeWarns(t *testing.T) {
-	doc := `{"version":"feast-tree/v1","document":{"children":[
+	doc := `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"BLINK","props":{}}
 	]}}`
 	tree, err := Parse([]byte(doc))
@@ -145,7 +145,7 @@ func TestUnknownTypeWarns(t *testing.T) {
 }
 
 func TestStaticTreeNeedsNoEvaluator(t *testing.T) {
-	doc := `{"version":"feast-tree/v1","document":{"children":[
+	doc := `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","children":[{"type":"TEXT","children":[{"type":"TEXT_INSTANCE","value":"hi"}]}]}
 	]}}`
 	tree, err := Parse([]byte(doc))
@@ -162,7 +162,7 @@ func TestStaticTreeNeedsNoEvaluator(t *testing.T) {
 
 func TestCallbackConsistencyWarnings(t *testing.T) {
 	// cb_1 referenced but not declared; cb_9 declared but not referenced.
-	doc := `{"version":"feast-tree/v1","callbacks":["cb_9"],"document":{"children":[
+	doc := `{"version":"waffle-tree/v1","callbacks":["cb_9"],"document":{"children":[
 		{"type":"TEXT","props":{"render":{"$cb":"cb_1"}}}
 	]}}`
 	tree, err := Parse([]byte(doc))

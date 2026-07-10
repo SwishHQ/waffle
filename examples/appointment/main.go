@@ -1,5 +1,5 @@
 // Command appointment renders the offer/appointment-letter example to a PDF. It
-// exercises feast end-to-end on a full document: custom embedded fonts, a
+// exercises waffle end-to-end on a full document: custom embedded fonts, a
 // full-page letterhead background, inline bold/italic runs, numbered clauses, an
 // embedded signature image, and a compensation table.
 //
@@ -19,7 +19,7 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/swish/feast"
+	"github.com/swish/waffle"
 )
 
 //go:embed appointment.jsx
@@ -78,7 +78,7 @@ func main() {
 	}
 	defer out.Close()
 
-	info, err := feast.RenderReact(context.Background(), appointmentJSX, sampleProps(), out)
+	info, err := waffle.RenderReact(context.Background(), appointmentJSX, sampleProps(), out)
 	if err != nil {
 		log.Fatalf("render: %v", err)
 	}

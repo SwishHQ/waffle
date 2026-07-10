@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Benchmark feast's in-process JSX->PDF render under the SAME container resource
+# Benchmark waffle's in-process JSX->PDF render under the SAME container resource
 # profiles a Gotenberg docx->PDF sidecar is typically sized under: 0.25 / 0.5
 # vCPU, capped memory, swap disabled. It cross-compiles a static linux binary,
 # stages it with the appointment letter + assets, and runs it in a minimal
@@ -27,9 +27,9 @@ if ! docker info >/dev/null 2>&1; then
 fi
 
 ARCH="$(docker version --format '{{.Server.Arch}}' 2>/dev/null || echo arm64)"
-echo "Building feast-bench (linux/$ARCH, CGO_ENABLED=0, static) ..."
+echo "Building waffle-bench (linux/$ARCH, CGO_ENABLED=0, static) ..."
 ( cd "$ROOT" && GOTOOLCHAIN=local GOOS=linux GOARCH="$ARCH" CGO_ENABLED=0 \
-    go build -trimpath -o "$STAGE/feast-bench" ./examples/appointment/bench ) || exit 1
+    go build -trimpath -o "$STAGE/waffle-bench" ./examples/appointment/bench ) || exit 1
 cp "$APPT/appointment.jsx" "$STAGE/"
 cp -R "$APPT/assets" "$STAGE/assets"
 docker pull "$IMAGE" >/dev/null 2>&1 || true
@@ -48,7 +48,7 @@ for p in "${PROFILES[@]}"; do
   echo "==================================================================="
   cid=$(docker run -d --cpus="$cpus" --memory="$mem" --memory-swap="$mem" \
     --restart=no -e REQUESTS="$REQUESTS" -e CONCURRENCY="$conc" -e GOMAXPROCS=1 \
-    -v "$STAGE:/app:ro" -w /app "$IMAGE" /app/feast-bench)
+    -v "$STAGE:/app:ro" -w /app "$IMAGE" /app/waffle-bench)
   docker wait "$cid" >/dev/null
   docker logs "$cid" 2>&1
   echo "-------------------------------------------------------------------"

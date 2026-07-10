@@ -1,17 +1,17 @@
 // appointment.jsx — a full offer/appointment letter for a fictional company
-// (Northwind Foods), exercising feast end-to-end: A4 geometry with 2" letterhead
+// (Northwind Foods), exercising waffle end-to-end: A4 geometry with 2" letterhead
 // margins, a full-page letterhead background, embedded fonts, numbered clauses,
 // inline bold/italic runs, a signature image, an offer-acceptance block, and a
 // prop-driven Annexure A compensation table.
 //
 // Render from this directory so the relative asset paths resolve:
-//   feast appointment.jsx appointment.pdf
+//   waffle appointment.jsx appointment.pdf
 //
 // Placeholder tokens (<Candidate Name>, <Salary>, ...) are overridable via props.
-import { Document, Page, View, Text, Image, Font } from '@feast/react';
+import { Document, Page, View, Text, Image, Font } from '@waffle/react';
 
 // The Go fonts (Bigelow & Holmes, BSD-licensed — see assets/fonts/NOTICE.md) in
-// all four faces feast needs to resolve fontWeight/fontStyle to the right TTF.
+// all four faces waffle needs to resolve fontWeight/fontStyle to the right TTF.
 Font.register({
   family: 'Go',
   fonts: [
@@ -241,7 +241,7 @@ const COL = { p: 1.6, m: 1, a: 1.6 };
 // Cell wraps its content with a right/bottom rule and vertically-centered text
 // (justifyContent centers on the column main-axis). flexBasis:0 makes the column
 // width depend only on the flex ratio, not the content — so every row's columns
-// line up into a true grid (feast's `flex:N` shorthand leaves flex-basis auto).
+// line up into a true grid (waffle's `flex:N` shorthand leaves flex-basis auto).
 function Cell({ flex, bold, size, children }) {
   return (
     <View

@@ -9,7 +9,7 @@ import (
 // bookmark props (string form and object form) become an /Outlines tree, with a
 // bookmarked child nesting under its bookmarked ancestor.
 func TestRenderBookmarks(t *testing.T) {
-	doc := `{"version":"feast-tree/v1","document":{"children":[
+	doc := `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[200,400]},"children":[
 			{"type":"VIEW","props":{"bookmark":"Intro","style":{"height":50}}},
 			{"type":"VIEW","props":{"bookmark":{"title":"Body"},"style":{"height":300}},"children":[
@@ -37,7 +37,7 @@ func TestRenderBookmarks(t *testing.T) {
 
 // No bookmark props => no outline.
 func TestRenderNoBookmarks(t *testing.T) {
-	doc := `{"version":"feast-tree/v1","document":{"children":[
+	doc := `{"version":"waffle-tree/v1","document":{"children":[
 		{"type":"PAGE","props":{"size":[100,100]},"children":[
 			{"type":"VIEW","props":{"style":{"height":50}}}
 		]}
