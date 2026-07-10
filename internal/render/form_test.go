@@ -42,3 +42,23 @@ func TestRenderTextInputNoName(t *testing.T) {
 		t.Error("a nameless TextInput should not create an AcroForm")
 	}
 }
+
+// A <Checkbox name checked> renders an AcroForm button widget with appearances.
+func TestRenderCheckbox(t *testing.T) {
+	doc := `{"version":"feast-tree/v1","document":{"children":[
+		{"type":"PAGE","props":{"size":[200,200]},"children":[
+			{"type":"CHECKBOX","props":{"name":"subscribe","checked":true,"style":{"width":16,"height":16}}}
+		]}
+	]}}`
+	res := layoutFromJSON(t, doc)
+	var out bytes.Buffer
+	if err := Render(res, &out, Options{}); err != nil {
+		t.Fatal(err)
+	}
+	s := out.String()
+	for _, want := range []string{"/FT /Btn", "(subscribe)", "/AS /Yes", "/AP"} {
+		if !strings.Contains(s, want) {
+			t.Errorf("PDF missing %q:\n%s", want, s)
+		}
+	}
+}

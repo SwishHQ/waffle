@@ -46,3 +46,38 @@ func TestTextFieldFlags(t *testing.T) {
 		t.Errorf("no flags = %d, want 0", got)
 	}
 }
+
+func TestAcroFormCheckbox(t *testing.T) {
+	doc := New(Options{})
+	c := NewContent()
+	c.Save().Rect(0, 0, 10, 10).Fill().Restore()
+	c.AddFormField(FormField{Kind: FieldCheckbox, Name: "agree", Checked: true, X0: 50, Y0: 150, X1: 70, Y1: 170})
+	doc.AddPage(300, 300, c)
+
+	var buf bytes.Buffer
+	if _, err := doc.WriteTo(&buf); err != nil {
+		t.Fatalf("WriteTo: %v", err)
+	}
+	s := buf.String()
+	for _, want := range []string{"/FT /Btn", "(agree)", "/AS /Yes", "/AP", "/Subtype /Form", "/AcroForm"} {
+		if !strings.Contains(s, want) {
+			t.Errorf("PDF missing %q", want)
+		}
+	}
+	if bin, _ := exec.LookPath("pdfcpu"); bin != "" {
+		p := filepath.Join(t.TempDir(), "cb.pdf")
+		os.WriteFile(p, buf.Bytes(), 0o644)
+		if out, err := exec.Command(bin, "validate", "-m", "strict", p).CombinedOutput(); err != nil {
+			t.Fatalf("pdfcpu validate failed: %v\n%s", err, out)
+		}
+	}
+}
+
+func TestCheckboxOnStateDefault(t *testing.T) {
+	if got := (FormField{}).onState(); got != "Yes" {
+		t.Errorf("default on-state = %q, want Yes", got)
+	}
+	if got := (FormField{OnState: "On"}).onState(); got != "On" {
+		t.Errorf("explicit on-state = %q, want On", got)
+	}
+}

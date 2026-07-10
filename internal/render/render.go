@@ -300,7 +300,7 @@ func paintNote(c *pdf.Content, box *layout.Box, pageH float64) {
 // box. The widget occupies the box frame; its border/background come from the
 // box's own styling. A field must have a name; nameless inputs are skipped.
 func paintFormField(c *pdf.Content, box *layout.Box, pageH float64, ctx stylesheet.Context) {
-	if box.Node == nil || box.Node.Type != contract.TypeTextInput {
+	if box.Node == nil {
 		return
 	}
 	name := str(box.Node.Props["name"])
@@ -310,24 +310,38 @@ func paintFormField(c *pdf.Content, box *layout.Box, pageH float64, ctx styleshe
 	if name == "" {
 		return
 	}
-	value := str(box.Node.Props["value"])
-	if value == "" {
-		value = str(box.Node.Props["defaultValue"])
-	}
-	multiline, _ := box.Node.Props["multiline"].(bool)
-	password, _ := box.Node.Props["password"].(bool)
 	f := box.Frame
-	c.AddFormField(pdf.FormField{
-		Name:      name,
-		Value:     value,
-		FontSize:  lengthPt(box.Style, "fontSize", ctx),
-		MultiLine: multiline,
-		Password:  password,
-		X0:        f.X,
-		Y0:        pageH - (f.Y + f.H),
-		X1:        f.X + f.W,
-		Y1:        pageH - f.Y,
-	})
+	x0, y0, x1, y1 := f.X, pageH-(f.Y+f.H), f.X+f.W, pageH-f.Y
+	switch box.Node.Type {
+	case contract.TypeTextInput:
+		value := str(box.Node.Props["value"])
+		if value == "" {
+			value = str(box.Node.Props["defaultValue"])
+		}
+		multiline, _ := box.Node.Props["multiline"].(bool)
+		password, _ := box.Node.Props["password"].(bool)
+		c.AddFormField(pdf.FormField{
+			Kind:      pdf.FieldText,
+			Name:      name,
+			Value:     value,
+			FontSize:  lengthPt(box.Style, "fontSize", ctx),
+			MultiLine: multiline,
+			Password:  password,
+			X0:        x0, Y0: y0, X1: x1, Y1: y1,
+		})
+	case contract.TypeCheckbox:
+		checked, _ := box.Node.Props["checked"].(bool)
+		if !checked {
+			checked, _ = box.Node.Props["defaultChecked"].(bool)
+		}
+		c.AddFormField(pdf.FormField{
+			Kind:    pdf.FieldCheckbox,
+			Name:    name,
+			Checked: checked,
+			OnState: str(box.Node.Props["onValue"]),
+			X0:      x0, Y0: y0, X1: x1, Y1: y1,
+		})
+	}
 }
 
 // noteText concatenates the text of a Note's TEXT_INSTANCE descendants.

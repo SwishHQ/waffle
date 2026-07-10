@@ -152,7 +152,7 @@ func (d *Document) AddPage(width, height float64, content *Content) {
 		// A field widget is referenced both here (for page rendering) and from the
 		// AcroForm /Fields array (for form semantics).
 		for _, fl := range fields {
-			ref := d.w.Add(fl.widgetAnnot())
+			ref := d.addFieldWidget(fl)
 			annots = append(annots, ref)
 			d.formFieldRefs = append(d.formFieldRefs, ref)
 		}
