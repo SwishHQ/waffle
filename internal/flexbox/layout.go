@@ -14,7 +14,18 @@ func Calculate(root *Node, width, height float64) {
 func measure(n *Node, availW, availH float64) Size {
 	s := &n.Style
 	if len(n.Children) == 0 && n.Measure != nil {
-		m := n.Measure(availW, availH)
+		// Measure the content within the padding/border box: a padded leaf (e.g. an
+		// indented, justified Text) then wraps at its content width, not the full
+		// available width, so its border-box never exceeds availW and its wrapped
+		// line count matches what the renderer paints into the content box.
+		mw, mh := availW-s.horizEdges(), availH-s.vertEdges()
+		if mw < 0 {
+			mw = 0
+		}
+		if mh < 0 {
+			mh = 0
+		}
+		m := n.Measure(mw, mh)
 		// The measure function reports content size; the border-box adds the
 		// node's own padding and border (unless an explicit size overrides).
 		w, h := m.W+s.horizEdges(), m.H+s.vertEdges()
