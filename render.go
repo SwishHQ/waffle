@@ -82,6 +82,10 @@ func docOptions(root *tree.Node) pdf.Options {
 	if p, ok := propInt32(root.Props, "permissions"); ok {
 		o.Permissions = p
 	}
+	// encryptionMethod:"aes" selects AES-128; the default is RC4-128.
+	if m := get("encryptionMethod"); m == "aes" || m == "AES" {
+		o.EncryptAES = true
+	}
 	if o.Creator == "" {
 		o.Creator = "feast"
 	}

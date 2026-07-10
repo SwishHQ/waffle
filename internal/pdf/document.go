@@ -36,6 +36,9 @@ type Options struct {
 	// bit set except bits 1–2, which are reserved and shall be 0 per
 	// PDF 32000-1 Table 22. Ignored unless encryption is enabled.
 	Permissions int32
+	// EncryptAES selects AES-128 (AESV2, /V 4 /R 4) instead of the default
+	// RC4-128 handler when encryption is enabled. Ignored without a password.
+	EncryptAES bool
 }
 
 // Document assembles a PDF: metadata, a page tree, and shared font objects.
@@ -236,7 +239,12 @@ func (d *Document) WriteTo(out io.Writer) (int64, error) {
 	}
 	d.w.ID = d.deriveID()
 	if d.opts.UserPassword != "" || d.opts.OwnerPassword != "" {
-		d.setupEncryption() // needs d.w.ID; must run after deriveID
+		// needs d.w.ID; must run after deriveID
+		if d.opts.EncryptAES {
+			d.setupAES()
+		} else {
+			d.setupEncryption()
+		}
 	}
 
 	return d.w.WriteTo(out)

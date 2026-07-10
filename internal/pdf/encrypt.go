@@ -141,19 +141,28 @@ func computeU(fileKey, id0 []byte) []byte {
 }
 
 // encryptor rewrites indirect objects at serialization time so that their
-// strings and stream data are RC4-encrypted with per-object keys.
+// strings and stream data are encrypted with per-object keys. It uses RC4 by
+// default, or AES-128-CBC (AESV2) when aes is set.
 type encryptor struct {
 	fileKey []byte
+	aes     bool
 }
 
-// objectKey derives the RC4 key for one indirect object (Algorithm 1 step b):
-// MD5 of the file key followed by the low-order 3 bytes of the object number
-// and 2 bytes of the generation number (little-endian), truncated to
-// min(len(fileKey)+5, 16) bytes.
+// aesSalt is appended to the object-key digest input for AESV2 (PDF 32000-1
+// §7.6.2, "the bytes 0x73 0x41 0x6C 0x54 (sAlT)").
+var aesSalt = []byte{0x73, 0x41, 0x6C, 0x54}
+
+// objectKey derives the encryption key for one indirect object (Algorithm 1
+// step b): MD5 of the file key followed by the low-order 3 bytes of the object
+// number and 2 bytes of the generation number (little-endian) — plus the sAlT
+// suffix for AES — truncated to min(len(fileKey)+5, 16) bytes.
 func (e *encryptor) objectKey(num, gen int) []byte {
 	h := md5.New()
 	h.Write(e.fileKey)
 	h.Write([]byte{byte(num), byte(num >> 8), byte(num >> 16), byte(gen), byte(gen >> 8)})
+	if e.aes {
+		h.Write(aesSalt)
+	}
 	n := len(e.fileKey) + 5
 	if n > 16 {
 		n = 16
@@ -161,39 +170,47 @@ func (e *encryptor) objectKey(num, gen int) []byte {
 	return h.Sum(nil)[:n]
 }
 
+// apply encrypts data with the per-object key using the configured cipher.
+func (e *encryptor) apply(key, data []byte) []byte {
+	if e.aes {
+		return aesEncrypt(key, data)
+	}
+	return rc4Apply(key, data)
+}
+
 // transform returns a deep copy of obj in which every string and every
 // stream's data has been encrypted for indirect object (num, gen). The stored
 // object is never mutated, so serialization stays repeatable.
 func (e *encryptor) transform(obj Object, num, gen int) Object {
-	return encryptValue(obj, e.objectKey(num, gen))
+	return e.encryptValue(obj, e.objectKey(num, gen))
 }
 
 // encryptValue walks an object tree, encrypting LiteralString/HexString values
-// and stream data with key. Each string and stream is encrypted independently
-// with a fresh RC4 cipher. Non-string scalar objects (names, numbers,
-// booleans, null, references) pass through unchanged.
-func encryptValue(obj Object, key []byte) Object {
+// and stream data with key. Each string and stream is encrypted independently.
+// Non-string scalar objects (names, numbers, booleans, null, references) pass
+// through unchanged.
+func (e *encryptor) encryptValue(obj Object, key []byte) Object {
 	switch v := obj.(type) {
 	case LiteralString:
-		return LiteralString(rc4Apply(key, []byte(v)))
+		return LiteralString(e.apply(key, []byte(v)))
 	case HexString:
-		return HexString(rc4Apply(key, v))
+		return HexString(e.apply(key, v))
 	case Array:
 		out := make(Array, len(v))
 		for i, o := range v {
-			out[i] = encryptValue(o, key)
+			out[i] = e.encryptValue(o, key)
 		}
 		return out
 	case Dict:
 		out := make(Dict, len(v))
 		for k, o := range v {
-			out[k] = encryptValue(o, key)
+			out[k] = e.encryptValue(o, key)
 		}
 		return out
 	case *Stream:
 		return &Stream{
-			Dict: encryptValue(v.Dict, key).(Dict),
-			Data: rc4Apply(key, v.Data),
+			Dict: e.encryptValue(v.Dict, key).(Dict),
+			Data: e.apply(key, v.Data),
 		}
 	default:
 		return obj
