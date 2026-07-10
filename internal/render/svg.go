@@ -219,12 +219,44 @@ func emitAndPaint(c *pdf.Content, p svgparse.Path, n *tree.Node, grads map[strin
 			}
 		}
 	}
-	// Scope solid-shape painting so per-shape stroke styling (dash/cap/join) does
-	// not leak into sibling shapes.
+	// Scope solid-shape painting so per-shape stroke styling and opacity do not
+	// leak into sibling shapes.
 	c.Save()
+	if a := svgShapeAlpha(n); a < 1 {
+		c.SetAlpha(a)
+	}
 	emitPath(c, p)
 	paintSVGShape(c, n)
 	c.Restore()
+}
+
+// svgShapeAlpha resolves a shape's constant alpha from opacity and
+// fill-/stroke-opacity. A single alpha is applied: the fill's when the shape is
+// filled (the common case), otherwise the stroke's, otherwise the group opacity.
+func svgShapeAlpha(n *tree.Node) float64 {
+	op := opacityAttr(n, "opacity", 1)
+	if fill := svgAttr(n, "fill", "black"); fill != "" && fill != "none" {
+		return op * opacityAttr(n, "fillOpacity", 1)
+	}
+	if stroke := svgAttr(n, "stroke", "none"); stroke != "" && stroke != "none" {
+		return op * opacityAttr(n, "strokeOpacity", 1)
+	}
+	return op
+}
+
+// opacityAttr reads a 0..1 opacity attribute, returning def when absent.
+func opacityAttr(n *tree.Node, key string, def float64) float64 {
+	if _, ok := n.Props[key]; !ok {
+		return def
+	}
+	v := numP(n, key)
+	if v < 0 {
+		return 0
+	}
+	if v > 1 {
+		return 1
+	}
+	return v
 }
 
 // applySVGStrokeStyle sets stroke dash pattern, line cap, and line join from a
