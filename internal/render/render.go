@@ -56,8 +56,80 @@ func Render(res *layout.Result, w io.Writer, opts Options) error {
 		doc.AddPage(page.Width, page.Height, c)
 	}
 
+	if outline := collectOutlines(res.Pages); len(outline) > 0 {
+		doc.SetOutline(outline)
+	}
+
 	_, err := doc.WriteTo(w)
 	return err
+}
+
+// collectOutlines builds the document outline from `bookmark` props, walking each
+// page in order. A bookmarked box nested inside another becomes its child, so the
+// outline mirrors the document's element hierarchy.
+func collectOutlines(pages []*layout.Page) []*pdf.Outline {
+	var roots []*pdf.Outline
+	for pi, pg := range pages {
+		if pg.Root != nil {
+			walkBookmarks(pg.Root, pi, pg.Height, &roots)
+		}
+	}
+	return roots
+}
+
+func walkBookmarks(box *layout.Box, pageIndex int, pageH float64, out *[]*pdf.Outline) {
+	target := out
+	if o := bookmarkOf(box, pageIndex, pageH); o != nil {
+		*out = append(*out, o)
+		target = &o.Children
+	}
+	for _, ch := range box.Children {
+		walkBookmarks(ch, pageIndex, pageH, target)
+	}
+}
+
+// bookmarkOf reads a box's `bookmark` prop (a title string, or an object with a
+// `title` and optional `top`) and returns an outline entry, or nil if absent.
+func bookmarkOf(box *layout.Box, pageIndex int, pageH float64) *pdf.Outline {
+	if box.Node == nil || box.Node.Props == nil {
+		return nil
+	}
+	bm, ok := box.Node.Props["bookmark"]
+	if !ok || bm == nil {
+		return nil
+	}
+	title := ""
+	top := box.Frame.Y // layout space (y-down from page top)
+	switch v := bm.(type) {
+	case string:
+		title = v
+	case map[string]any:
+		title = str(v["title"])
+		if t, ok := numProp(v["top"]); ok {
+			top = t
+		}
+	default:
+		return nil
+	}
+	if title == "" {
+		return nil
+	}
+	return &pdf.Outline{Title: title, Page: pageIndex, Top: pageH - top}
+}
+
+// numProp reads a JSON number (json.Number/float64/int) as a float64.
+func numProp(v any) (float64, bool) {
+	switch n := v.(type) {
+	case json.Number:
+		if f, err := n.Float64(); err == nil {
+			return f, true
+		}
+	case float64:
+		return n, true
+	case int:
+		return float64(n), true
+	}
+	return 0, false
 }
 
 // paintBox paints a box and then its children (so children render on top).

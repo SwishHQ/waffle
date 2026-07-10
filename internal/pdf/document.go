@@ -48,6 +48,7 @@ type Document struct {
 	imageObjs   map[*ImageSpec]Reference    // image spec -> XObject reference
 	embFontObjs map[*EmbeddedFont]Reference // embedded font -> font object reference
 	shadingObjs map[*Shading]Reference      // gradient shading -> shading object reference
+	outline     []*Outline                  // document outline (bookmarks); nil if none
 }
 
 // New creates a Document with the given options.
@@ -191,6 +192,12 @@ func (d *Document) WriteTo(out io.Writer) (int64, error) {
 	}
 	if d.opts.PageLayout != "" {
 		catalog[Name("PageLayout")] = Name(d.opts.PageLayout)
+	}
+	if ref, ok := d.buildOutline(); ok {
+		catalog[Name("Outlines")] = ref
+		if d.opts.PageMode == "" {
+			catalog[Name("PageMode")] = Name("UseOutlines")
+		}
 	}
 	d.w.Root = d.w.Add(catalog)
 
