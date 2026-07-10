@@ -126,24 +126,30 @@ func (f *Face) FontName() string {
 	return name
 }
 
-// EmbeddedFont builds the pdf.EmbeddedFont for this face (program bytes +
+// EmbeddedFont returns the pdf.EmbeddedFont for this face (program bytes +
 // descriptor + WinAnsi widths), ready to embed as a simple TrueType PDF font.
+// The value is built once and cached: returning the same pointer on every call
+// lets the PDF writer dedupe the font program to a single FontFile2 stream no
+// matter how many text boxes use the face.
 func (f *Face) EmbeddedFont() *pdf.EmbeddedFont {
-	d := f.Descriptor()
-	return &pdf.EmbeddedFont{
-		Name:    f.FontName(),
-		Program: f.data,
-		Descriptor: pdf.FontDescriptor{
-			Ascent:      d.Ascent,
-			Descent:     d.Descent,
-			CapHeight:   d.CapHeight,
-			BBox:        d.BBox,
-			ItalicAngle: d.ItalicAngle,
-			Flags:       d.Flags,
-			StemV:       d.StemV,
-		},
-		Widths: f.WinAnsiWidths(),
-	}
+	f.embedOnce.Do(func() {
+		d := f.Descriptor()
+		f.embedded = &pdf.EmbeddedFont{
+			Name:    f.FontName(),
+			Program: f.data,
+			Descriptor: pdf.FontDescriptor{
+				Ascent:      d.Ascent,
+				Descent:     d.Descent,
+				CapHeight:   d.CapHeight,
+				BBox:        d.BBox,
+				ItalicAngle: d.ItalicAngle,
+				Flags:       d.Flags,
+				StemV:       d.StemV,
+			},
+			Widths: f.WinAnsiWidths(),
+		}
+	})
+	return f.embedded
 }
 
 // isFixedPitch heuristically detects a monospace font by comparing the advances

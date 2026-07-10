@@ -14,6 +14,7 @@ import (
 
 	"github.com/go-text/typesetting/font"
 
+	"github.com/swish/feast/internal/pdf"
 	"github.com/swish/feast/internal/pdf/afm"
 )
 
@@ -51,6 +52,9 @@ type Face struct {
 	data   []byte
 	parsed *font.Face
 	upem   float64
+
+	embedOnce sync.Once
+	embedded  *pdf.EmbeddedFont
 }
 
 // Data returns the original font bytes (for embedding).
