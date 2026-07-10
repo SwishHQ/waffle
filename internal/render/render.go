@@ -341,7 +341,48 @@ func paintFormField(c *pdf.Content, box *layout.Box, pageH float64, ctx styleshe
 			OnState: str(box.Node.Props["onValue"]),
 			X0:      x0, Y0: y0, X1: x1, Y1: y1,
 		})
+	case contract.TypeSelect, contract.TypeList:
+		value := str(box.Node.Props["value"])
+		if value == "" {
+			value = str(box.Node.Props["defaultValue"])
+		}
+		c.AddFormField(pdf.FormField{
+			Kind:     pdf.FieldChoice,
+			Name:     name,
+			Value:    value,
+			Options:  choiceOptions(box.Node.Props["options"]),
+			Combo:    box.Node.Type == contract.TypeSelect,
+			FontSize: lengthPt(box.Style, "fontSize", ctx),
+			X0:       x0, Y0: y0, X1: x1, Y1: y1,
+		})
 	}
+}
+
+// choiceOptions parses a Select/List `options` prop into choice entries. Each
+// entry may be a plain string, or a {value,label} (or {value,display}) object.
+func choiceOptions(v any) []pdf.ChoiceOption {
+	list, ok := v.([]any)
+	if !ok {
+		return nil
+	}
+	out := make([]pdf.ChoiceOption, 0, len(list))
+	for _, item := range list {
+		switch o := item.(type) {
+		case string:
+			out = append(out, pdf.ChoiceOption{Export: o, Display: o})
+		case map[string]any:
+			export := str(o["value"])
+			display := str(o["label"])
+			if display == "" {
+				display = str(o["display"])
+			}
+			if display == "" {
+				display = export
+			}
+			out = append(out, pdf.ChoiceOption{Export: export, Display: display})
+		}
+	}
+	return out
 }
 
 // noteText concatenates the text of a Note's TEXT_INSTANCE descendants.

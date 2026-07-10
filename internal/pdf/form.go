@@ -11,7 +11,15 @@ type FormFieldKind int
 const (
 	FieldText     FormFieldKind = iota // single- or multi-line text (/Tx)
 	FieldCheckbox                      // toggle button (/Btn)
+	FieldChoice                        // combo box / list box (/Ch)
 )
+
+// ChoiceOption is one entry of a choice field: an export value and the display
+// label shown to the user (often identical).
+type ChoiceOption struct {
+	Export  string
+	Display string
+}
 
 // FormField is an interactive AcroForm field rendered as a widget annotation on a
 // page. Text fields (/Tx) and checkboxes (/Btn) are supported.
@@ -25,6 +33,9 @@ type FormField struct {
 
 	Checked bool   // checkbox: initial state
 	OnState string // checkbox: export value of the "on" state (default "Yes")
+
+	Options []ChoiceOption // choice field entries
+	Combo   bool           // choice field: dropdown (combo) vs. list box
 
 	X0, Y0, X1, Y1 float64 // widget rectangle in page (default user) space
 }
@@ -62,10 +73,46 @@ func (f FormField) textFieldFlags() int {
 // addFieldWidget serializes a field into a widget-annotation object and returns
 // its reference. Checkboxes also emit on/off appearance-stream XObjects.
 func (d *Document) addFieldWidget(f FormField) Reference {
-	if f.Kind == FieldCheckbox {
+	switch f.Kind {
+	case FieldCheckbox:
 		return d.w.Add(d.checkboxWidget(f))
+	case FieldChoice:
+		return d.w.Add(f.choiceWidget())
+	default:
+		return d.w.Add(f.textWidget())
 	}
-	return d.w.Add(f.textWidget())
+}
+
+// choiceWidget builds a choice-field (/Ch) widget: a dropdown when Combo is set,
+// otherwise a scrollable list box. /Opt lists the options as [export display]
+// pairs (or a single string when they match).
+func (f FormField) choiceWidget() Dict {
+	const flagCombo = 1 << 17 // bit 18
+	opt := make(Array, len(f.Options))
+	for i, o := range f.Options {
+		if o.Export == "" || o.Export == o.Display {
+			opt[i] = TextString(o.Display)
+		} else {
+			opt[i] = Array{TextString(o.Export), TextString(o.Display)}
+		}
+	}
+	d := Dict{
+		Name("Type"):    Name("Annot"),
+		Name("Subtype"): Name("Widget"),
+		Name("FT"):      Name("Ch"),
+		Name("T"):       TextString(f.Name),
+		Name("V"):       TextString(f.Value),
+		Name("Opt"):     opt,
+		Name("DA"):      LiteralString(fmt.Sprintf("/Helv %s Tf 0 g", num(f.FontSize))),
+		Name("F"):       Integer(4),
+		Name("Rect"):    Array{Real(f.X0), Real(f.Y0), Real(f.X1), Real(f.Y1)},
+		Name("MK"):      Dict{Name("BC"): Array{Integer(0)}},
+		Name("BS"):      Dict{Name("W"): Integer(1), Name("S"): Name("S")},
+	}
+	if f.Combo {
+		d[Name("Ff")] = Integer(flagCombo)
+	}
+	return d
 }
 
 // textWidget builds a text-field widget dictionary. The widget also serves as the

@@ -62,3 +62,28 @@ func TestRenderCheckbox(t *testing.T) {
 		}
 	}
 }
+
+// A <Select options> renders a combo (dropdown) choice field; <List> a list box.
+func TestRenderSelectAndList(t *testing.T) {
+	doc := `{"version":"feast-tree/v1","document":{"children":[
+		{"type":"PAGE","props":{"size":[300,300]},"children":[
+			{"type":"SELECT","props":{"name":"lang","value":"go","options":["go","rust",{"value":"ts","label":"TypeScript"}],"style":{"width":150,"height":20}}},
+			{"type":"LIST","props":{"name":"tags","options":["a","b"],"style":{"width":150,"height":40}}}
+		]}
+	]}}`
+	res := layoutFromJSON(t, doc)
+	var out bytes.Buffer
+	if err := Render(res, &out, Options{}); err != nil {
+		t.Fatal(err)
+	}
+	s := out.String()
+	for _, want := range []string{"/FT /Ch", "(lang)", "(TypeScript)", "(ts)", "(tags)", "/Ff 131072"} {
+		if !strings.Contains(s, want) {
+			t.Errorf("PDF missing %q:\n%s", want, s)
+		}
+	}
+	// The list box (tags) must NOT have the combo flag; only the Select does.
+	if strings.Count(s, "/Ff 131072") != 1 {
+		t.Errorf("exactly one combo flag expected (Select, not List):\n%s", s)
+	}
+}
