@@ -632,3 +632,49 @@ func TestRenderReactTransformPDF(t *testing.T) {
 		}
 	}
 }
+
+// An SVG linear gradient authored in JSX must render to a strict-valid PDF.
+const gradientDoc = `
+import { Document, Page, Svg, Defs, LinearGradient, Stop, Rect } from '@feast/react';
+export default function App() {
+  return (
+    <Document>
+      <Page size="A7" style={{ padding: 12 }}>
+        <Svg style={{ width: 120, height: 80 }} viewBox="0 0 120 80">
+          <Defs>
+            <LinearGradient id="grad" x1="0" y1="0" x2="1" y2="1">
+              <Stop offset="0" stopColor="#e63946" />
+              <Stop offset="0.5" stopColor="#f1faee" />
+              <Stop offset="1" stopColor="#457b9d" />
+            </LinearGradient>
+          </Defs>
+          <Rect x="0" y="0" width="120" height="80" fill="url(#grad)" />
+        </Svg>
+      </Page>
+    </Document>
+  );
+}
+`
+
+func TestRenderReactSVGGradientPDF(t *testing.T) {
+	tmpl, err := LoadTemplate([]byte(gradientDoc), TemplateOptions{Filename: "grad.jsx"})
+	if err != nil {
+		t.Fatalf("LoadTemplate: %v", err)
+	}
+	var buf bytes.Buffer
+	if _, err := tmpl.Render(context.Background(), nil, &buf); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	if !bytes.Contains(buf.Bytes(), []byte("/ShadingType 2")) {
+		t.Error("expected an axial /Shading for the gradient")
+	}
+	if bin := findPDFCPU(); bin != "" {
+		p := filepath.Join(t.TempDir(), "grad.pdf")
+		if err := os.WriteFile(p, buf.Bytes(), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if out, err := exec.Command(bin, "validate", "-m", "strict", p).CombinedOutput(); err != nil {
+			t.Fatalf("pdfcpu validate failed: %v\n%s", err, out)
+		}
+	}
+}
