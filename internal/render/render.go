@@ -442,7 +442,14 @@ func percentFraction(tok string) (float64, bool) {
 // fonts (BaseFont == "") are skipped.
 func paintText(c *pdf.Content, box *layout.Box, pageH float64, ctx stylesheet.Context) {
 	t := box.Text
-	if t == nil || len(t.Lines) == 0 || (t.BaseFont == "" && t.EmbeddedFont == nil) {
+	if t == nil || len(t.Lines) == 0 {
+		return
+	}
+	if len(t.RunLines) > 0 {
+		paintRunLines(c, box, t, pageH, ctx)
+		return
+	}
+	if t.BaseFont == "" && t.EmbeddedFont == nil {
 		return
 	}
 	col := stylesheet.Color{A: 1} // default black
@@ -546,6 +553,92 @@ func paintText(c *pdf.Content, box *layout.Box, pageH float64, ctx stylesheet.Co
 		}
 	}
 	c.Restore()
+}
+
+// paintRunLines paints a Text laid out as inline styled runs: each line is a
+// sequence of positioned fragments, each drawn with its own font, size, color,
+// and letter spacing at a shared baseline. Alignment supports left/center/right;
+// justify falls back to left for mixed runs.
+func paintRunLines(c *pdf.Content, box *layout.Box, t *layout.TextInfo, pageH float64, ctx stylesheet.Context) {
+	insetLeft := lengthPt(box.Style, "borderLeftWidth", ctx) + lengthPt(box.Style, "paddingLeft", ctx)
+	insetRight := lengthPt(box.Style, "borderRightWidth", ctx) + lengthPt(box.Style, "paddingRight", ctx)
+	insetTop := lengthPt(box.Style, "borderTopWidth", ctx) + lengthPt(box.Style, "paddingTop", ctx)
+	contentW := box.Frame.W - insetLeft - insetRight
+	x0 := box.Frame.X + insetLeft
+	top := box.Frame.Y + insetTop
+	align := str(box.Style["textAlign"])
+
+	type deco struct {
+		x, y, w, size  float64
+		r, g, b        float64
+		under, through bool
+	}
+	var decos []deco
+
+	c.Save()
+	for i, line := range t.RunLines {
+		if len(line) == 0 {
+			continue
+		}
+		last := line[len(line)-1]
+		lineW := last.X + fragWidth(last)
+		lineStart := x0
+		switch align {
+		case "right":
+			lineStart = x0 + (contentW - lineW)
+		case "center":
+			lineStart = x0 + (contentW-lineW)/2
+		}
+		baseline := pageH - (top + float64(i)*t.LineHeight + t.Ascent)
+		for _, f := range line {
+			col := stylesheet.Color{A: 1}
+			if f.Color != "" {
+				if pc, err := stylesheet.ParseColor(f.Color); err == nil {
+					col = pc
+				}
+			}
+			r, g, b := col.RGB()
+			fx := lineStart + f.X
+			c.FillRGB(r, g, b).BeginText()
+			if f.EmbeddedFont != nil {
+				c.SetEmbeddedFont(f.EmbeddedFont, f.Size)
+			} else {
+				c.SetFont(f.BaseFont, f.Size)
+			}
+			c.CharSpacing(f.LetterSpacing) // reset per fragment (Tc persists in state)
+			c.TextMatrix(1, 0, 0, 1, fx, baseline).ShowText(f.Text).EndText()
+			if f.Underline || f.Strike {
+				decos = append(decos, deco{x: fx, y: baseline, w: fragWidth(f), size: f.Size, r: r, g: g, b: b, under: f.Underline, through: f.Strike})
+			}
+		}
+	}
+	for _, d := range decos {
+		c.StrokeRGB(d.r, d.g, d.b).LineWidth(math.Max(0.5, d.size/14))
+		if d.under {
+			y := d.y - d.size*0.12
+			c.MoveTo(d.x, y).LineTo(d.x+d.w, y).Stroke()
+		}
+		if d.through {
+			y := d.y + d.size*0.28
+			c.MoveTo(d.x, y).LineTo(d.x+d.w, y).Stroke()
+		}
+	}
+	c.Restore()
+}
+
+// fragWidth measures a run fragment's advance in its own font (fragments never
+// contain spaces, so only letterSpacing augments the glyph advances).
+func fragWidth(f layout.RunFragment) float64 {
+	var w float64
+	if f.EmbeddedFont != nil {
+		w = embeddedWidth(f.EmbeddedFont, f.Text, f.Size)
+	} else if m, err := afm.Load(f.BaseFont); err == nil {
+		w = m.StringWidth(f.Text, f.Size)
+	}
+	if f.LetterSpacing != 0 {
+		w += f.LetterSpacing * float64(len([]rune(f.Text)))
+	}
+	return w
 }
 
 // textDecoration reports whether the resolved style asks for an underline and/or

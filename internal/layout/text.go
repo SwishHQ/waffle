@@ -39,6 +39,15 @@ type textResolve struct {
 	wordSpacing   float64 // extra advance per space character (points)
 	maxLines      int     // cap on wrapped lines (0 = unlimited)
 	ellipsis      bool    // textOverflow:ellipsis — trailing … on a truncated last line
+
+	runs     []textRun       // inline styled runs; empty for the single-style path
+	runLines [][]RunFragment // wrapped run fragments per line (set by measure)
+}
+
+// textRun is one styled inline piece of a Text's content.
+type textRun struct {
+	text  string
+	style runStyle
 }
 
 // stringWidth measures a string's advance, including letterSpacing (per character)
@@ -58,6 +67,9 @@ func (t *textResolve) stringWidth(s string) float64 {
 // content to the available width and reports the widest line and the total
 // height (lines × line height). The wrapped lines are stored for the renderer.
 func (t *textResolve) measure(availW, availH float64) flexbox.Size {
+	if len(t.runs) > 0 {
+		return t.measureRuns(availW)
+	}
 	if t.measurer == nil {
 		return flexbox.Size{W: 0, H: t.lineHeight}
 	}
@@ -129,7 +141,191 @@ func (t *textResolve) ellipsize(s string, maxW float64) string {
 	return e
 }
 
-func resolveText(node *tree.Node, style map[string]any, ctx stylesheet.Context, eval Evaluator, store *fontstore.Store) *textResolve {
+// stringWidth measures a word in this run's font, including its letter spacing.
+func (rs *runStyle) stringWidth(s string) float64 {
+	if rs.measurer == nil {
+		return 0
+	}
+	w := rs.measurer.StringWidth(s, rs.size)
+	if rs.letterSpacing != 0 {
+		w += rs.letterSpacing * float64(len([]rune(s)))
+	}
+	return w
+}
+
+// spaceWidth is the advance of an inter-word space in this run (a space glyph
+// plus its wordSpacing and letterSpacing).
+func (rs *runStyle) spaceWidth() float64 {
+	if rs.measurer == nil {
+		return 0
+	}
+	return rs.measurer.StringWidth(" ", rs.size) + rs.wordSpacing + rs.letterSpacing
+}
+
+// hasInlineRuns reports whether a Text node contains nested styled inline
+// elements (another Text, a Link, or a Tspan), which require run layout.
+func hasInlineRuns(node *tree.Node) bool {
+	for _, ch := range node.Children {
+		switch ch.Type {
+		case contract.TypeText, contract.TypeLink, contract.TypeTspan:
+			return true
+		}
+		if hasInlineRuns(ch) {
+			return true
+		}
+	}
+	return false
+}
+
+// buildRuns flattens a Text's inline tree into styled runs in document order.
+// Each nested Text/Link/Tspan resolves its own style (inheriting from its
+// parent); TEXT_INSTANCE leaves become runs carrying the surrounding style.
+func buildRuns(node *tree.Node, parentStyle map[string]any, media stylesheet.MediaContext, ctx stylesheet.Context, store *fontstore.Store) []textRun {
+	var runs []textRun
+	var walk func(n *tree.Node, inherited map[string]any)
+	walk = func(n *tree.Node, inherited map[string]any) {
+		for _, ch := range n.Children {
+			switch ch.Type {
+			case contract.TypeTextInstance:
+				txt := applyTextTransform(ch.Value, str(inherited["textTransform"]))
+				if txt == "" {
+					continue
+				}
+				runs = append(runs, textRun{text: txt, style: resolveRunStyle(inherited, ctx, store)})
+			case contract.TypeText, contract.TypeLink, contract.TypeTspan:
+				own := stylesheet.Resolve(ch.Style, media)
+				eff := stylesheet.Inherit(inherited, own, true)
+				walk(ch, eff)
+			default:
+				walk(ch, inherited)
+			}
+		}
+	}
+	walk(node, parentStyle)
+	return runs
+}
+
+// wordPiece is one whitespace-delimited word tagged with its run and whether a
+// space separated it from the previous word (in source order).
+type wordPiece struct {
+	style       *runStyle
+	text        string
+	spaceBefore bool
+}
+
+// runPieces tokenizes the ordered runs into word pieces, collapsing runs of
+// whitespace to single inter-word gaps while preserving gaps across run
+// boundaries.
+func runPieces(runs []textRun) []wordPiece {
+	var pieces []wordPiece
+	pendingSpace := false
+	started := false
+	for i := range runs {
+		rs := &runs[i].style
+		s := runs[i].text
+		field := strings.Builder{}
+		flush := func() {
+			if field.Len() == 0 {
+				return
+			}
+			pieces = append(pieces, wordPiece{style: rs, text: field.String(), spaceBefore: pendingSpace && started})
+			field.Reset()
+			pendingSpace = false
+			started = true
+		}
+		for _, r := range s {
+			if r == ' ' || r == '\t' || r == '\n' || r == '\r' {
+				flush()
+				pendingSpace = true
+			} else {
+				field.WriteRune(r)
+			}
+		}
+		flush()
+	}
+	return pieces
+}
+
+// measureRuns wraps the run pieces into lines of positioned fragments and reports
+// the widest line and total height. Line height and ascent are uniform across the
+// paragraph (the max over all runs), so pagination can split by line count.
+func (t *textResolve) measureRuns(availW float64) flexbox.Size {
+	pieces := runPieces(t.runs)
+	// Uniform paragraph metrics from the widest/tallest run.
+	lineH, ascent := 0.0, 0.0
+	for i := range t.runs {
+		if h := t.runs[i].style.lineHeight; h > lineH {
+			lineH = h
+		}
+		if a := t.runs[i].style.ascent; a > ascent {
+			ascent = a
+		}
+	}
+	if lineH == 0 {
+		lineH = t.lineHeight
+	}
+	t.lineHeight = lineH
+	t.ascent = ascent
+
+	var lines [][]RunFragment
+	var lineText []string
+	var cur []RunFragment
+	var curText strings.Builder
+	x := 0.0
+	maxW := 0.0
+	flushLine := func() {
+		if len(cur) == 0 {
+			return
+		}
+		lines = append(lines, cur)
+		lineText = append(lineText, curText.String())
+		if x > maxW {
+			maxW = x
+		}
+		cur = nil
+		curText.Reset()
+		x = 0
+	}
+	for _, p := range pieces {
+		gap := 0.0
+		if len(cur) > 0 && p.spaceBefore {
+			gap = p.style.spaceWidth()
+		}
+		w := p.style.stringWidth(p.text)
+		if len(cur) > 0 && availW > 0 && x+gap+w > availW {
+			flushLine()
+			gap = 0 // no leading space at line start
+		}
+		if gap > 0 {
+			x += gap
+			curText.WriteByte(' ')
+		}
+		cur = append(cur, RunFragment{
+			Text:          p.text,
+			X:             x,
+			BaseFont:      p.style.base,
+			EmbeddedFont:  p.style.embedded,
+			Size:          p.style.size,
+			Color:         p.style.color,
+			LetterSpacing: p.style.letterSpacing,
+			WordSpacing:   p.style.wordSpacing,
+			Underline:     p.style.underline,
+			Strike:        p.style.strike,
+		})
+		curText.WriteString(p.text)
+		x += w
+	}
+	flushLine()
+
+	t.runLines = lines
+	t.lines = lineText
+	if len(lines) == 0 {
+		return flexbox.Size{W: 0, H: lineH}
+	}
+	return flexbox.Size{W: maxW, H: float64(len(lines)) * lineH}
+}
+
+func resolveText(node *tree.Node, style map[string]any, media stylesheet.MediaContext, ctx stylesheet.Context, eval Evaluator, store *fontstore.Store) *textResolve {
 	content := collectText(node)
 
 	// A render prop provides per-page content, substituted after pagination once
@@ -154,22 +350,62 @@ func resolveText(node *tree.Node, style map[string]any, ctx stylesheet.Context, 
 	}
 	transform := str(style["textTransform"])
 	content = applyTextTransform(content, transform)
-	size := fontSizeOf(style, ctx)
+	rs := resolveRunStyle(style, ctx, store)
 	tr := &textResolve{
 		content:       content,
-		size:          size,
-		color:         str(style["color"]),
-		lineHeight:    lineHeightOf(style, size, ctx),
+		size:          rs.size,
+		color:         rs.color,
+		lineHeight:    rs.lineHeight,
+		ascent:        rs.ascent,
+		measurer:      rs.measurer,
+		base:          rs.base,
+		embedded:      rs.embedded,
 		orphans:       propInt(node.Props, "orphans", 2),
 		widows:        propInt(node.Props, "widows", 2),
 		template:      template,
 		callbackID:    callbackID,
 		transform:     transform,
-		letterSpacing: spacingOf(style, "letterSpacing", ctx),
-		wordSpacing:   spacingOf(style, "wordSpacing", ctx),
+		letterSpacing: rs.letterSpacing,
+		wordSpacing:   rs.wordSpacing,
 		maxLines:      propInt(style, "maxLines", 0),
 		ellipsis:      str(style["textOverflow"]) == "ellipsis",
 	}
+
+	// Inline runs: a Text containing nested styled elements (<Text>/<Link>/<Tspan>)
+	// lays out as styled runs sharing lines, instead of one flattened block.
+	if hasInlineRuns(node) {
+		tr.runs = buildRuns(node, style, media, ctx, store)
+	}
+	return tr
+}
+
+// runStyle is the resolved typography for a single-style Text or one inline run.
+type runStyle struct {
+	measurer      fontstore.Font
+	base          string
+	embedded      *pdf.EmbeddedFont
+	size          float64
+	ascent        float64
+	lineHeight    float64
+	color         string
+	letterSpacing float64
+	wordSpacing   float64
+	underline     bool
+	strike        bool
+}
+
+// resolveRunStyle resolves a style map to concrete typography, preferring a
+// registered custom font over the standard 14.
+func resolveRunStyle(style map[string]any, ctx stylesheet.Context, store *fontstore.Store) runStyle {
+	size := fontSizeOf(style, ctx)
+	rs := runStyle{
+		size:          size,
+		color:         str(style["color"]),
+		lineHeight:    lineHeightOf(style, size, ctx),
+		letterSpacing: spacingOf(style, "letterSpacing", ctx),
+		wordSpacing:   spacingOf(style, "wordSpacing", ctx),
+	}
+	rs.underline, rs.strike = decorationFlags(style)
 
 	weight := 400
 	if w, ok := stylesheet.ParseFontWeight(style["fontWeight"]); ok {
@@ -178,23 +414,32 @@ func resolveText(node *tree.Node, style map[string]any, ctx stylesheet.Context, 
 	fstyle := fontstore.ParseStyle(str(style["fontStyle"]))
 	family := fontFamilyOf(style)
 
-	// A registered custom font (Font.register) wins over the standard fonts.
 	if store != nil {
 		if face, ok := store.ResolveFace(family, weight, fstyle); ok {
-			tr.measurer = face
-			tr.embedded = face.EmbeddedFont()
-			tr.ascent = face.Descriptor().Ascent / 1000 * size
-			return tr
+			rs.measurer = face
+			rs.embedded = face.EmbeddedFont()
+			rs.ascent = face.Descriptor().Ascent / 1000 * size
+			return rs
 		}
 	}
 	if base, ok := fontstore.StandardBaseFont(family, weight, fstyle); ok {
-		tr.base = base
+		rs.base = base
 		if m, err := afm.Load(base); err == nil {
-			tr.measurer = m
-			tr.ascent = m.Ascender / 1000 * size
+			rs.measurer = m
+			rs.ascent = m.Ascender / 1000 * size
 		}
 	}
-	return tr
+	return rs
+}
+
+// decorationFlags reports underline / line-through from textDecoration (or the
+// textDecorationLine longhand), which may name either or both.
+func decorationFlags(style map[string]any) (underline, strike bool) {
+	deco := str(style["textDecoration"])
+	if deco == "" {
+		deco = str(style["textDecorationLine"])
+	}
+	return strings.Contains(deco, "underline"), strings.Contains(deco, "line-through")
 }
 
 // collectText concatenates the text of all TEXT_INSTANCE descendants in order.

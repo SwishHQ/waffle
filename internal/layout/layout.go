@@ -57,6 +57,27 @@ type TextInfo struct {
 	LetterSpacing float64           // extra advance per character (points)
 	WordSpacing   float64           // extra advance per space character (points)
 	EmbeddedFont  *pdf.EmbeddedFont // registered custom font to embed; nil for standard fonts
+
+	// RunLines holds per-line styled fragments for Text with inline runs (nested
+	// styled <Text>/<Link>/<Tspan>). When non-empty the renderer paints these
+	// instead of the flat Lines; Lines still carries the plain text per line for
+	// pagination height math.
+	RunLines [][]RunFragment
+}
+
+// RunFragment is one styled piece of text positioned on a line, at X points from
+// the line's start. Exactly one of BaseFont / EmbeddedFont is set.
+type RunFragment struct {
+	Text          string
+	X             float64
+	BaseFont      string
+	EmbeddedFont  *pdf.EmbeddedFont
+	Size          float64
+	Color         string
+	LetterSpacing float64
+	WordSpacing   float64
+	Underline     bool
+	Strike        bool
 }
 
 // Page is one laid-out page.
@@ -151,7 +172,7 @@ func buildLayoutNode(node *tree.Node, parentEffective map[string]any, media styl
 	// A Text node is a measured leaf: its content is flattened and measured as a
 	// unit (rich inline runs and wrapping arrive with the text engine).
 	if node.Type == contract.TypeText {
-		if tr := resolveText(node, eff, ctx, eval, store); tr != nil {
+		if tr := resolveText(node, eff, media, ctx, eval, store); tr != nil {
 			ln.text = tr
 			fx.Measure = tr.measure
 		}
@@ -232,6 +253,7 @@ func toBox(ln *layoutNode, absX, absY float64) *Box {
 			LetterSpacing: t.letterSpacing,
 			WordSpacing:   t.wordSpacing,
 			EmbeddedFont:  t.embedded,
+			RunLines:      t.runLines,
 		}
 	}
 	if im := ln.image; im != nil {

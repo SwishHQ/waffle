@@ -194,6 +194,12 @@ func splitTextBox(b *Box, boundary float64) (fit, rest *Box) {
 	restBox.Text = &restText
 	restBox.Frame.Y = b.Frame.Y + float64(nFit)*t.LineHeight
 	restBox.Frame.H = float64(len(t.Lines)-nFit) * t.LineHeight
+
+	// Keep inline run fragments aligned with the split line ranges.
+	if len(t.RunLines) == len(t.Lines) {
+		fitText.RunLines = t.RunLines[:nFit]
+		restText.RunLines = t.RunLines[nFit:]
+	}
 	return &fitBox, &restBox
 }
 
