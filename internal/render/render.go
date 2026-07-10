@@ -385,6 +385,7 @@ func paintBorders(c *pdf.Content, box *layout.Box, pageH float64, ctx stylesheet
 			r, g, b := col.RGB()
 			hw := bw / 2
 			c.Save().StrokeRGB(r, g, b).LineWidth(bw)
+			applyBorderDash(c, borderStyleOf(box, "Top"), bw)
 			roundedRectPath(c, f.X+hw, pageH-(f.Y+f.H)+hw, f.W-bw, f.H-bw,
 				math.Max(tl-hw, 0), math.Max(tr-hw, 0), math.Max(br-hw, 0), math.Max(bl-hw, 0))
 			c.Stroke().Restore()
@@ -397,20 +398,80 @@ func paintBorders(c *pdf.Content, box *layout.Box, pageH float64, ctx stylesheet
 	bottom := lengthPt(box.Style, "borderBottomWidth", ctx)
 	left := lengthPt(box.Style, "borderLeftWidth", ctx)
 
-	// Each side is a filled strip. Corners overlap; per-side colors resolve to
-	// whichever side paints last there (miter joins are a later refinement).
+	// Each side is a filled strip (solid) or a dashed/dotted line stroked down the
+	// center of the strip. Corners overlap; per-side colors resolve to whichever
+	// side paints last there (miter joins are a later refinement).
 	if top > 0 {
-		fillRect(c, f.X, pageH-f.Y-top, f.W, top, borderColor(box, "Top"))
+		if st := borderStyleOf(box, "Top"); dashed(st) {
+			y := pageH - f.Y - top/2
+			strokeBorderLine(c, f.X, y, f.X+f.W, y, top, st, borderColor(box, "Top"))
+		} else {
+			fillRect(c, f.X, pageH-f.Y-top, f.W, top, borderColor(box, "Top"))
+		}
 	}
 	if bottom > 0 {
-		fillRect(c, f.X, pageH-(f.Y+f.H), f.W, bottom, borderColor(box, "Bottom"))
+		if st := borderStyleOf(box, "Bottom"); dashed(st) {
+			y := pageH - (f.Y + f.H) + bottom/2
+			strokeBorderLine(c, f.X, y, f.X+f.W, y, bottom, st, borderColor(box, "Bottom"))
+		} else {
+			fillRect(c, f.X, pageH-(f.Y+f.H), f.W, bottom, borderColor(box, "Bottom"))
+		}
 	}
 	if left > 0 {
-		fillRect(c, f.X, pageH-(f.Y+f.H), left, f.H, borderColor(box, "Left"))
+		if st := borderStyleOf(box, "Left"); dashed(st) {
+			x := f.X + left/2
+			strokeBorderLine(c, x, pageH-(f.Y+f.H), x, pageH-f.Y, left, st, borderColor(box, "Left"))
+		} else {
+			fillRect(c, f.X, pageH-(f.Y+f.H), left, f.H, borderColor(box, "Left"))
+		}
 	}
 	if right > 0 {
-		fillRect(c, f.X+f.W-right, pageH-(f.Y+f.H), right, f.H, borderColor(box, "Right"))
+		if st := borderStyleOf(box, "Right"); dashed(st) {
+			x := f.X + f.W - right/2
+			strokeBorderLine(c, x, pageH-(f.Y+f.H), x, pageH-f.Y, right, st, borderColor(box, "Right"))
+		} else {
+			fillRect(c, f.X+f.W-right, pageH-(f.Y+f.H), right, f.H, borderColor(box, "Right"))
+		}
 	}
+}
+
+// dashed reports whether a border style renders as a stroked line rather than a
+// filled strip.
+func dashed(style string) bool { return style == "dashed" || style == "dotted" }
+
+// borderStyleOf resolves a side's line style: "dashed", "dotted", or "solid"
+// (the default). A per-side border{Side}Style wins over the borderStyle shorthand.
+func borderStyleOf(box *layout.Box, side string) string {
+	if v := str(box.Style["border"+side+"Style"]); v != "" {
+		return v
+	}
+	if v := str(box.Style["borderStyle"]); v != "" {
+		return v
+	}
+	return "solid"
+}
+
+// applyBorderDash sets the dash pattern (and, for dotted, round caps) for a
+// border stroke of the given width. A solid style leaves the state unchanged.
+func applyBorderDash(c *pdf.Content, style string, width float64) {
+	switch style {
+	case "dotted":
+		c.LineCap(1).Dash(0, 0, 2*width) // 0-length dash + round cap => a dot
+	case "dashed":
+		c.Dash(0, 3*width, 2*width)
+	}
+}
+
+// strokeBorderLine strokes one border edge as a dashed or dotted line centered in
+// the border strip.
+func strokeBorderLine(c *pdf.Content, x0, y0, x1, y1, width float64, style string, col stylesheet.Color) {
+	if width <= 0 || col.A == 0 {
+		return
+	}
+	r, g, b := col.RGB()
+	c.Save().StrokeRGB(r, g, b).LineWidth(width)
+	applyBorderDash(c, style, width)
+	c.MoveTo(x0, y0).LineTo(x1, y1).Stroke().Restore()
 }
 
 func fillRect(c *pdf.Content, x, y, w, h float64, col stylesheet.Color) {
