@@ -55,6 +55,7 @@ type TextInfo struct {
 	CallbackID    string            // function render-prop callback id ($cb); "" if none
 	Transform     string            // textTransform, re-applied to per-page substituted content
 	LetterSpacing float64           // extra advance per character (points)
+	WordSpacing   float64           // extra advance per space character (points)
 	EmbeddedFont  *pdf.EmbeddedFont // registered custom font to embed; nil for standard fonts
 }
 
@@ -229,6 +230,7 @@ func toBox(ln *layoutNode, absX, absY float64) *Box {
 			CallbackID:    t.callbackID,
 			Transform:     t.transform,
 			LetterSpacing: t.letterSpacing,
+			WordSpacing:   t.wordSpacing,
 			EmbeddedFont:  t.embedded,
 		}
 	}

@@ -306,12 +306,14 @@ func paintText(c *pdf.Content, box *layout.Box, pageH float64, ctx stylesheet.Co
 		}
 		stringWidth = func(s string) float64 { return metrics.StringWidth(s, t.Size) }
 	}
-	// letterSpacing (PDF Tc) adds to every glyph's advance, so widths used for
-	// alignment/justify must include it too.
-	if t.LetterSpacing != 0 {
+	// letterSpacing (PDF Tc) and wordSpacing (PDF Tw) add to advances, so widths
+	// used for alignment/justify must include them too.
+	if t.LetterSpacing != 0 || t.WordSpacing != 0 {
 		base := stringWidth
-		ls := t.LetterSpacing
-		stringWidth = func(s string) float64 { return base(s) + ls*float64(len([]rune(s))) }
+		ls, ws := t.LetterSpacing, t.WordSpacing
+		stringWidth = func(s string) float64 {
+			return base(s) + ls*float64(len([]rune(s))) + ws*float64(strings.Count(s, " "))
+		}
 	}
 
 	insetLeft := lengthPt(box.Style, "borderLeftWidth", ctx) + lengthPt(box.Style, "paddingLeft", ctx)
@@ -338,7 +340,7 @@ func paintText(c *pdf.Content, box *layout.Box, pageH float64, ctx stylesheet.Co
 	for i, line := range t.Lines {
 		lineW := stringWidth(line)
 		x := x0
-		wordSpace := 0.0
+		wordSpace := t.WordSpacing // baseline word spacing; justify adds to it
 		paintedW := lineW
 		switch align {
 		case "right":
@@ -346,9 +348,10 @@ func paintText(c *pdf.Content, box *layout.Box, pageH float64, ctx stylesheet.Co
 		case "center":
 			x = x0 + (contentW-lineW)/2
 		case "justify":
-			// Justify all but the last line by widening inter-word gaps.
+			// Justify all but the last line by widening inter-word gaps on top of
+			// any baseline wordSpacing (already included in lineW).
 			if gaps := strings.Count(line, " "); i < len(t.Lines)-1 && gaps > 0 && contentW > lineW {
-				wordSpace = (contentW - lineW) / float64(gaps)
+				wordSpace += (contentW - lineW) / float64(gaps)
 				paintedW = contentW
 			}
 		}

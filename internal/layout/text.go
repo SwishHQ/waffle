@@ -36,14 +36,18 @@ type textResolve struct {
 	transform  string // textTransform, re-applied to per-page substituted content
 
 	letterSpacing float64 // extra advance per character (points), added to every glyph
+	wordSpacing   float64 // extra advance per space character (points)
 }
 
-// stringWidth measures a string's advance, including letterSpacing applied to
-// every character (matching the PDF Tc operator used at paint time).
+// stringWidth measures a string's advance, including letterSpacing (per character)
+// and wordSpacing (per space), matching the PDF Tc/Tw operators used at paint time.
 func (t *textResolve) stringWidth(s string) float64 {
 	w := t.measurer.StringWidth(s, t.size)
 	if t.letterSpacing != 0 {
 		w += t.letterSpacing * float64(len([]rune(s)))
+	}
+	if t.wordSpacing != 0 {
+		w += t.wordSpacing * float64(strings.Count(s, " "))
 	}
 	return w
 }
@@ -129,7 +133,8 @@ func resolveText(node *tree.Node, style map[string]any, ctx stylesheet.Context, 
 		template:      template,
 		callbackID:    callbackID,
 		transform:     transform,
-		letterSpacing: letterSpacingOf(style, ctx),
+		letterSpacing: spacingOf(style, "letterSpacing", ctx),
+		wordSpacing:   spacingOf(style, "wordSpacing", ctx),
 	}
 
 	weight := 400
@@ -312,10 +317,11 @@ func lineHeightOf(style map[string]any, size float64, ctx stylesheet.Context) fl
 	return size * 1.2
 }
 
-// letterSpacingOf resolves letterSpacing to points. A bare number is absolute
-// points; a value with a unit resolves normally. Defaults to 0.
-func letterSpacingOf(style map[string]any, ctx stylesheet.Context) float64 {
-	switch t := style["letterSpacing"].(type) {
+// spacingOf resolves a spacing property (letterSpacing/wordSpacing) to points. A
+// bare number is absolute points; a value with a unit resolves normally.
+// Defaults to 0.
+func spacingOf(style map[string]any, key string, ctx stylesheet.Context) float64 {
+	switch t := style[key].(type) {
 	case json.Number:
 		if f, err := t.Float64(); err == nil {
 			return f
