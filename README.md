@@ -84,7 +84,7 @@ The engine is feature-complete for the core react-pdf surface, and React runs in
 - **Rounded corners & border styles** — `borderRadius` (per-corner + `%`) on backgrounds, uniform borders, and image clipping (circular avatars via `borderRadius: '50%'`); `borderStyle` solid/**dashed**/**dotted**.
 - **Opacity & stacking** — `opacity` via ExtGState (nested multiplication) and `zIndex` paint ordering among siblings, applied to a box and its subtree.
 - **Transforms** — `transform` (`rotate`/`scale`/`translate`/`skew`/`matrix`) about `transform-origin` (default center), applied to a box and its subtree.
-- **Encryption** — `<Document userPassword ownerPassword permissions>` produces a password-protected PDF (standard security handler, **RC4-128 or AES-128** via `encryptionMethod="aes"`).
+- **Encryption** — `<Document userPassword ownerPassword permissions>` produces a password-protected PDF (standard security handler, **RC4-128, AES-128, or AES-256** via `encryptionMethod="aes"`/`"aes256"`).
 - **JS engine** (`internal/jsruntime`) — esbuild transpiles JSX/TSX and bundles embedded React + `@feast/react`; goja executes it to produce a `feast-tree/v1` document. Real React runs: components, props, `.map`, **hooks** (`useState`/`useMemo`/`useContext`/`useRef`/`useReducer`/…), **context** (`<Ctx.Provider>` + `useContext`), and `React.memo`/`forwardRef`.
 
   **Function render-props** work too: `<Text render={({ pageNumber, totalPages }) => \`${pageNumber} / ${totalPages}\`} />` is evaluated on the live VM per page during pagination (the closure stays in goja; the Go engine calls back with each page's context).
