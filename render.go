@@ -33,12 +33,14 @@ func RenderTree(ctx context.Context, treeJSON []byte, w io.Writer) (*RenderInfo,
 	if err != nil {
 		return nil, err
 	}
-	return renderContract(ctx, ct, nil, w)
+	return renderContract(ctx, ct, nil, nil, w)
 }
 
 // renderContract runs the layout+paint pipeline on a parsed contract tree. eval
-// evaluates function render-props per page (nil for the static path).
-func renderContract(ctx context.Context, ct *contract.Tree, eval layout.Evaluator, w io.Writer) (*RenderInfo, error) {
+// evaluates function render-props per page (nil for the static path). cache
+// carries decoded assets across renders of the same document (nil for one-shot
+// paths, which then decode everything fresh).
+func renderContract(ctx context.Context, ct *contract.Tree, eval layout.Evaluator, cache *layout.Cache, w io.Writer) (*RenderInfo, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -46,7 +48,7 @@ func renderContract(ctx context.Context, ct *contract.Tree, eval layout.Evaluato
 	if err != nil {
 		return nil, err
 	}
-	res, err := layout.Layout(tr, layout.Options{Eval: eval})
+	res, err := layout.Layout(tr, layout.Options{Eval: eval, Cache: cache})
 	if err != nil {
 		return nil, err
 	}

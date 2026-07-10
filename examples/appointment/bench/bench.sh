@@ -32,7 +32,9 @@ echo "Building waffle-bench (linux/$ARCH, CGO_ENABLED=0, static) ..."
     go build -trimpath -o "$STAGE/waffle-bench" ./examples/appointment/bench ) || exit 1
 cp "$APPT/appointment.jsx" "$STAGE/"
 cp -R "$APPT/assets" "$STAGE/assets"
-docker pull "$IMAGE" >/dev/null 2>&1 || true
+# Pull only when the image is missing — an unconditional pull blocks on the
+# registry check even when the image is already local.
+docker image inspect "$IMAGE" >/dev/null 2>&1 || docker pull "$IMAGE" >/dev/null 2>&1 || true
 
 # name | cpus | memory | concurrency  (swap disabled: --memory-swap == --memory)
 PROFILES=(

@@ -100,6 +100,10 @@ type Options struct {
 	// Eval evaluates function render-props (render={fn}) per page. Nil for the
 	// static path (such render-props then resolve to empty).
 	Eval Evaluator
+	// Cache memoizes decoded images and parsed fonts across renders of the same
+	// document (a Template owns one and passes it here). Nil disables caching —
+	// every render decodes and parses its assets from scratch.
+	Cache *Cache
 }
 
 func (o Options) dpi() float64 {
@@ -133,7 +137,7 @@ type layoutNode struct {
 func Layout(t *tree.Tree, opts Options) (*Result, error) {
 	base := stylesheet.Context{DPI: opts.dpi(), RemBase: opts.remBase()}
 	res := &Result{Warnings: append([]string(nil), t.Warnings...)}
-	store, warns := buildFontStore(t.Fonts)
+	store, warns := opts.Cache.fontStore(t.Fonts)
 	res.Warnings = append(res.Warnings, warns...)
 
 	for _, pageNode := range t.Root.Children {
@@ -145,7 +149,7 @@ func Layout(t *tree.Tree, opts Options) (*Result, error) {
 		ctx.PageW, ctx.PageH = w, h
 		media := stylesheet.MediaContext{Width: w, Height: h, Orientation: orientation}
 
-		ln := buildLayoutNode(pageNode, nil, media, ctx, opts.Eval, store)
+		ln := buildLayoutNode(pageNode, nil, media, ctx, opts.Eval, store, opts.Cache)
 		flexbox.Calculate(ln.flex, w, h)
 
 		page := &Page{Width: w, Height: h, Root: toBox(ln, 0, 0)}
@@ -163,7 +167,7 @@ func Layout(t *tree.Tree, opts Options) (*Result, error) {
 // buildLayoutNode resolves a node's style (inheriting from parentEffective),
 // maps it to flexbox inputs, and recurses. TEXT_INSTANCE children are skipped
 // here; text measurement arrives in the text phase.
-func buildLayoutNode(node *tree.Node, parentEffective map[string]any, media stylesheet.MediaContext, ctx stylesheet.Context, eval Evaluator, store *fontstore.Store) *layoutNode {
+func buildLayoutNode(node *tree.Node, parentEffective map[string]any, media stylesheet.MediaContext, ctx stylesheet.Context, eval Evaluator, store *fontstore.Store, cache *Cache) *layoutNode {
 	own := stylesheet.Resolve(node.Style, media)
 	eff := stylesheet.Inherit(parentEffective, own, node.Type == contract.TypeText)
 
@@ -181,7 +185,7 @@ func buildLayoutNode(node *tree.Node, parentEffective map[string]any, media styl
 	}
 
 	if node.Type == contract.TypeImage {
-		if im := resolveImage(node, eff); im != nil {
+		if im := resolveImage(node, eff, cache); im != nil {
 			ln.image = im
 			fx.Measure = im.measure
 			if fx.Style.AspectRatio == 0 && im.h > 0 {
@@ -218,7 +222,7 @@ func buildLayoutNode(node *tree.Node, parentEffective map[string]any, media styl
 		if c.Type == contract.TypeTextInstance {
 			continue
 		}
-		child := buildLayoutNode(c, eff, media, ctx, eval, store)
+		child := buildLayoutNode(c, eff, media, ctx, eval, store, cache)
 		ln.kids = append(ln.kids, child)
 		fx.Children = append(fx.Children, child.flex)
 	}

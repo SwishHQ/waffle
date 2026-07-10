@@ -111,14 +111,19 @@ func (w *Writer) WriteTo(out io.Writer) (int64, error) {
 // FlateStream returns a stream object whose data is zlib/FlateDecode-compressed.
 // extra dictionary entries (if any) are merged in alongside /Filter.
 func FlateStream(extra Dict, data []byte) *Stream {
-	var zbuf bytes.Buffer
-	zw := zlib.NewWriter(&zbuf)
-	_, _ = zw.Write(data)
-	_ = zw.Close()
-
 	d := Dict{Name("Filter"): Name("FlateDecode")}
 	for k, v := range extra {
 		d[k] = v
 	}
-	return &Stream{Dict: d, Data: zbuf.Bytes()}
+	return &Stream{Dict: d, Data: flateData(data)}
+}
+
+// flateData zlib-compresses data exactly as FlateStream does, for callers that
+// memoize the compressed bytes across documents.
+func flateData(data []byte) []byte {
+	var zbuf bytes.Buffer
+	zw := zlib.NewWriter(&zbuf)
+	_, _ = zw.Write(data)
+	_ = zw.Close()
+	return zbuf.Bytes()
 }

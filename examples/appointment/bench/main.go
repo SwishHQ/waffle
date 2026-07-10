@@ -19,6 +19,7 @@ import (
 	"io"
 	"os"
 	"runtime"
+	"runtime/pprof"
 	"sort"
 	"strconv"
 	"strings"
@@ -57,6 +58,20 @@ func main() {
 	concurrency := envInt("CONCURRENCY", 1)
 	if concurrency > requests {
 		concurrency = requests
+	}
+
+	// CPUPROFILE=/path/cpu.prof profiles the steady-state render loop only
+	// (compile + warmup excluded), for `go tool pprof`.
+	if pp := os.Getenv("CPUPROFILE"); pp != "" {
+		f, err := os.Create(pp)
+		if err != nil {
+			fatalf("create profile: %v", err)
+		}
+		defer f.Close()
+		if err := pprof.StartCPUProfile(f); err != nil {
+			fatalf("start profile: %v", err)
+		}
+		defer pprof.StopCPUProfile()
 	}
 
 	type result struct {

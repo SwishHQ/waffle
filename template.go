@@ -27,8 +27,15 @@ type TemplateOptions struct {
 // are authored. It is transpiled (esbuild) and executed (goja) entirely inside
 // the Go process — waffle needs no Node.js at render time. A Template is safe to
 // Render repeatedly, including concurrently: each Render runs on its own VM.
+//
+// A Template caches its decoded assets: images are decoded (and their pixels
+// compressed) and registered fonts fetched and parsed once, on first use, then
+// reused by every subsequent Render. File and URL sources are therefore read
+// once per Template — a change to the underlying file is picked up by loading a
+// new Template, not by re-rendering an existing one.
 type Template struct {
-	prog *jsruntime.Program
+	prog  *jsruntime.Program
+	cache *layout.Cache // decoded images + parsed fonts, shared across renders
 }
 
 // LoadTemplate compiles a React source into a reusable Template.
@@ -40,7 +47,7 @@ func LoadTemplate(source []byte, opts TemplateOptions) (*Template, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Template{prog: prog}, nil
+	return &Template{prog: prog, cache: layout.NewCache()}, nil
 }
 
 // Tree runs the template with props and returns the waffle-tree/v1 JSON, without
@@ -72,7 +79,7 @@ func (t *Template) Render(ctx context.Context, props any, w io.Writer) (*RenderI
 	if err != nil {
 		return nil, err
 	}
-	return renderContract(ctx, ct, instanceEvaluator{inst}, w)
+	return renderContract(ctx, ct, instanceEvaluator{inst}, t.cache, w)
 }
 
 // instanceEvaluator adapts a live jsruntime.Instance to layout.Evaluator: it runs

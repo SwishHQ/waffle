@@ -53,3 +53,35 @@ REQUESTS=30 bash examples/appointment/bench/bench.sh
 # --cpus/--memory/--memory-swap (swap disabled) and POST a letter .docx to
 # /forms/libreoffice/convert, timing each response.
 ```
+
+---
+
+## Update: after template asset caching
+
+The tables above were the baseline that motivated profiling. A CPU profile of
+the steady-state render loop showed ~90% of per-render time was redundant asset
+work — re-decoding the letterhead PNG (~67%, including re-compressing its
+pixels) and re-flating font programs — while JS execution and layout were noise.
+waffle now caches those on the `Template`: images are decoded and their pixels
+compressed once, fonts fetched/parsed once, and each embedded face's compressed
+`FontFile2` stream is built once and shared across every render.
+
+Re-measured with the same harness (30 requests, concurrency 1, swap disabled;
+the example document is the current de-branded letter — lighter letterhead and
+Go fonts than the baseline runs above, so the like-for-like row is the native
+before/after pair, measured on the identical document):
+
+| Profile | p50 | p95 | throughput | peak memory |
+|---|---|---|---|---|
+| native, uncapped — before caching | 165 ms | 203 ms | 5.8/s | — |
+| **native, uncapped — after caching** | **15 ms** | **16 ms** | **66.7/s** (147/s at concurrency 8) | heap 11 MiB |
+| **0.25 vCPU / 384 MiB — after** | **102 ms** | **322 ms** | **8.3/s** | **83 MiB** |
+| **0.5 vCPU / 512 MiB — after** | **29 ms** | **91 ms** | **21.6/s** | **91 MiB** |
+
+Same-document native comparison: **11× faster** (p50 165 ms → 15 ms). Against
+the Gotenberg rows above, at Gotenberg's own 0.25-vCPU sizing floor waffle now
+renders at **~23× lower p50 latency** (102 ms vs 2.38 s), **~28× the
+throughput** (8.3 vs 0.30 conversions/s), in **~3× less memory** (83 vs
+264 MiB). Caveats: the first render of a Template still pays the full
+decode/parse cost (the cache fills on first use), and file/URL assets are read
+once per Template — a changed file on disk needs a new Template to be noticed.

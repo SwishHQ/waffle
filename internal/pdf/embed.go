@@ -3,6 +3,7 @@ package pdf
 import (
 	"fmt"
 	"math"
+	"sync"
 )
 
 // FontDescriptor holds embedded-font metrics in 1000-unit text space.
@@ -16,12 +17,25 @@ type FontDescriptor struct {
 
 // EmbeddedFont is a TrueType font program embedded as a simple (WinAnsi) PDF
 // font. Widths is indexed by WinAnsi code (0..255), in 1000-unit advances. It is
-// compared by pointer identity, so reuse the same *EmbeddedFont per face.
+// compared by pointer identity, so reuse the same *EmbeddedFont per face — that
+// also lets the compressed font program be built once and shared across every
+// document the face appears in.
 type EmbeddedFont struct {
 	Name       string // PDF /BaseFont name (unique per face)
 	Program    []byte // raw TrueType (sfnt) bytes
 	Descriptor FontDescriptor
 	Widths     []int
+
+	flateOnce sync.Once
+	flateProg []byte // zlib-compressed Program, built on first embed
+}
+
+// flateProgram returns the zlib-compressed font program, compressing once per
+// EmbeddedFont. Encryption (when enabled) is applied later, per document, to
+// these plaintext stream bytes — exactly as with an uncached FlateStream.
+func (ef *EmbeddedFont) flateProgram() []byte {
+	ef.flateOnce.Do(func() { ef.flateProg = flateData(ef.Program) })
+	return ef.flateProg
 }
 
 // SetEmbeddedFont selects an embedded TrueType font and size (Tf), registering
@@ -56,7 +70,13 @@ func (d *Document) embFontRef(ef *EmbeddedFont) Reference {
 	if r, ok := d.embFontObjs[ef]; ok {
 		return r
 	}
-	ffRef := d.w.Add(FlateStream(Dict{Name("Length1"): Integer(len(ef.Program))}, ef.Program))
+	ffRef := d.w.Add(&Stream{
+		Dict: Dict{
+			Name("Filter"):  Name("FlateDecode"),
+			Name("Length1"): Integer(len(ef.Program)),
+		},
+		Data: ef.flateProgram(),
+	})
 
 	fd := ef.Descriptor
 	descRef := d.w.Add(Dict{
