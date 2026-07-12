@@ -44,6 +44,12 @@ type Font interface {
 }
 
 // Face is one registered font face.
+//
+// A Face is shared across concurrent renders via the template asset cache, but
+// its parsed go-text/typesetting Face is not safe for concurrent use: glyph
+// lookups lazily populate internal caches. mu serializes every access to parsed,
+// and the render-invariant Descriptor is memoized so the hot path never touches
+// parsed after warmup.
 type Face struct {
 	Family string
 	Weight int
@@ -53,6 +59,11 @@ type Face struct {
 	parsed *font.Face
 	upem   float64
 
+	mu sync.Mutex // guards all parsed access
+
+	descOnce sync.Once
+	desc     Descriptor
+
 	embedOnce sync.Once
 	embedded  *pdf.EmbeddedFont
 }
@@ -60,16 +71,19 @@ type Face struct {
 // Data returns the original font bytes (for embedding).
 func (f *Face) Data() []byte { return f.data }
 
-// StringWidth measures text using nominal glyph advances.
+// StringWidth measures text using nominal glyph advances. It is safe for
+// concurrent use: access to the shared go-text Face is serialized by f.mu.
 func (f *Face) StringWidth(text string, size float64) float64 {
 	if f.upem == 0 {
 		return 0
 	}
+	f.mu.Lock()
 	var units float64
 	for _, r := range text {
 		gid, _ := f.parsed.NominalGlyph(r) // gid 0 (.notdef) for missing runes
 		units += float64(f.parsed.HorizontalAdvance(gid))
 	}
+	f.mu.Unlock()
 	return units * size / f.upem
 }
 
