@@ -279,6 +279,50 @@ func TestPaginationFixedRepeats(t *testing.T) {
 	}
 }
 
+func TestPaginationUnbreakableMovesWhole(t *testing.T) {
+	// A 70pt block, then a wrap=false View of two 20pt rows: it straddles the
+	// 100pt page at 70..110, so it moves whole to page 2 instead of splitting.
+	res := layoutJSON(t, `{"version":"waffle-tree/v1","document":{"children":[
+		{"type":"PAGE","props":{"size":[100,100]},"children":[
+			{"type":"VIEW","props":{"style":{"height":70}}},
+			{"type":"VIEW","props":{"wrap":false},"children":[
+				{"type":"VIEW","props":{"style":{"height":20}}},
+				{"type":"VIEW","props":{"style":{"height":20}}}
+			]}
+		]}
+	]}}`)
+	if len(res.Pages) != 2 {
+		t.Fatalf("expected 2 pages, got %d", len(res.Pages))
+	}
+	if n := len(res.Pages[0].Root.Children); n != 1 {
+		t.Errorf("page 1 should hold only the 70pt block, got %d children", n)
+	}
+	moved := res.Pages[1].Root.Children[0]
+	if n := len(moved.Children); n != 2 {
+		t.Errorf("unbreakable block should arrive whole (2 rows), got %d", n)
+	}
+	if moved.Frame.Y < -1e-6 || moved.Frame.Y > 1e-6 || moved.Frame.H != 40 {
+		t.Errorf("unbreakable block frame Y=%v H=%v, want Y≈0 H=40", moved.Frame.Y, moved.Frame.H)
+	}
+}
+
+func TestPaginationUnbreakableTallerThanPageSplits(t *testing.T) {
+	// A wrap=false View taller than a whole page cannot move whole anywhere, so it
+	// splits as usual rather than overflowing off the page.
+	res := layoutJSON(t, `{"version":"waffle-tree/v1","document":{"children":[
+		{"type":"PAGE","props":{"size":[100,100]},"children":[
+			{"type":"VIEW","props":{"wrap":false},"children":[
+				{"type":"VIEW","props":{"style":{"height":40}}},
+				{"type":"VIEW","props":{"style":{"height":40}}},
+				{"type":"VIEW","props":{"style":{"height":40}}}
+			]}
+		]}
+	]}}`)
+	if len(res.Pages) != 2 {
+		t.Fatalf("expected the 120pt block to split over 2 pages, got %d", len(res.Pages))
+	}
+}
+
 func TestPaginationMinPresenceAhead(t *testing.T) {
 	// Block A (30pt) fits, but B has minPresenceAhead=50; only ~10pt remain after A,
 	// so B (and A? no — A stays, B breaks) is pushed to page 2.

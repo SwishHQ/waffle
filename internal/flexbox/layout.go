@@ -9,53 +9,70 @@ func Calculate(root *Node, width, height float64) {
 
 // measure returns a node's border-box size given the available space. Explicit
 // width/height win; otherwise leaves use their measure function and containers
-// use their intrinsic (content) size. A wrapping container with a definite main
-// size and an auto cross size grows its cross size to fit its wrapped lines.
+// use their intrinsic (content) size. A height is always measured at the width
+// the node is laid out at (see heightAt), so a Text never measures one line
+// shorter than paint draws it.
 func measure(n *Node, availW, availH float64) Size {
 	s := &n.Style
-	if len(n.Children) == 0 && n.Measure != nil {
-		// Measure the content within the padding/border box: a padded leaf (e.g. an
-		// indented, justified Text) then wraps at its content width, not the full
-		// available width, so its border-box never exceeds availW and its wrapped
-		// line count matches what the renderer paints into the content box.
-		mw, mh := availW-s.horizEdges(), availH-s.vertEdges()
-		if mw < 0 {
-			mw = 0
-		}
-		if mh < 0 {
-			mh = 0
-		}
-		m := n.Measure(mw, mh)
-		// The measure function reports content size; the border-box adds the
-		// node's own padding and border (unless an explicit size overrides).
-		w, h := m.W+s.horizEdges(), m.H+s.vertEdges()
-		if v, ok := s.Width.resolve(availW); ok {
-			w = v
-		}
-		if v, ok := s.Height.resolve(availH); ok {
-			h = v
-		}
-		w, h = applyAspect(s, w, h)
-		return Size{s.clampWidth(w, availW), s.clampHeight(h, availH)}
-	}
 	w, wOK := s.Width.resolve(availW)
 	h, hOK := s.Height.resolve(availH)
-	if !wOK {
-		if s.Wrap != WrapNoWrap && !s.isRow() && hOK {
-			w = wrappedCrossSize(n, h-s.vertEdges(), availW, availH) + s.horizEdges()
-		} else {
-			w = intrinsicWidth(n, availW, availH)
+	if len(n.Children) == 0 && n.Measure != nil && !wOK {
+		// An auto-width leaf: one measurement of its content box at the available
+		// width gives both sides. The measure function reports content size; the
+		// border box adds the node's own padding and border.
+		mw, mh := contentSize(s, availW, availH)
+		m := n.Measure(mw, mh)
+		w = m.W + s.horizEdges()
+		if !hOK {
+			h = m.H + s.vertEdges()
 		}
-	}
-	if !hOK {
-		if s.Wrap != WrapNoWrap && s.isRow() && wOK {
-			h = wrappedCrossSize(n, w-s.horizEdges(), availW, availH) + s.vertEdges()
-		} else {
-			h = intrinsicHeight(n, availW, availH)
+	} else {
+		if !wOK {
+			if s.Wrap != WrapNoWrap && !s.isRow() && hOK {
+				w = crossContentSize(n, h-s.vertEdges(), availW, availH) + s.horizEdges()
+			} else {
+				w = intrinsicWidth(n, availW, availH)
+			}
+		}
+		if !hOK {
+			// Its own width when definite, else the width available to it, which an
+			// auto-width child stretches to.
+			at := availW
+			if wOK {
+				at = w
+			}
+			h = heightAt(n, at, availH)
 		}
 	}
 	w, h = applyAspect(s, w, h)
 	return Size{s.clampWidth(w, availW), s.clampHeight(h, availH)}
+}
+
+// heightAt returns n's border-box height when it is laid out at border-box width
+// w, the width paint wraps its text at. An explicit height wins; a leaf measures
+// its content box (a padded, indented Text wraps at its content width); a
+// container measures its children inside its own content box.
+func heightAt(n *Node, w, availH float64) float64 {
+	s := &n.Style
+	if h, ok := s.Height.resolve(availH); ok {
+		return s.clampHeight(h, availH)
+	}
+	var h float64
+	if len(n.Children) == 0 && n.Measure != nil {
+		mw, mh := contentSize(s, w, availH)
+		h = n.Measure(mw, mh).H + s.vertEdges()
+	} else {
+		h = intrinsicHeight(n, w, availH)
+	}
+	if s.AspectRatio > 0 && !s.Width.IsAuto() {
+		h = w / s.AspectRatio
+	}
+	return s.clampHeight(h, availH)
+}
+
+// contentSize is the content box inside a w×h border box, never negative.
+func contentSize(s *Style, w, h float64) (float64, float64) {
+	return max(w-s.horizEdges(), 0), max(h-s.vertEdges(), 0)
 }
 
 func intrinsicWidth(n *Node, availW, availH float64) float64 {
@@ -92,38 +109,33 @@ func intrinsicWidth(n *Node, availW, availH float64) float64 {
 	return max + edges
 }
 
+// intrinsicHeight is a container's content-driven border-box height at border-box
+// width availW. Its children lay out inside its content box, so they are measured
+// there; a row also flexes its line(s) first, so each child is measured at the
+// width it is painted at, not at the row's full width.
 func intrinsicHeight(n *Node, availW, availH float64) float64 {
 	s := &n.Style
 	edges := s.vertEdges()
 	if len(n.Children) == 0 {
 		return edges
 	}
-	if !s.isRow() {
-		total, cnt := 0.0, 0
-		for _, c := range n.Children {
-			if c.Style.isAbsolute() {
-				continue
-			}
-			cs := measure(c, availW, availH)
-			if cnt > 0 {
-				total += s.Gap
-			}
-			total += cs.H + c.Style.MarginTop + c.Style.MarginBottom
-			cnt++
-		}
-		return total + edges
+	cw, _ := contentSize(s, availW, availH)
+	if s.isRow() {
+		return crossContentSize(n, cw, availW, availH) + edges
 	}
-	max := 0.0
+	total, cnt := 0.0, 0
 	for _, c := range n.Children {
 		if c.Style.isAbsolute() {
 			continue
 		}
-		cs := measure(c, availW, availH)
-		if oh := cs.H + c.Style.MarginTop + c.Style.MarginBottom; oh > max {
-			max = oh
+		cs := measure(c, cw, availH)
+		if cnt > 0 {
+			total += s.Gap
 		}
+		total += cs.H + c.Style.MarginTop + c.Style.MarginBottom
+		cnt++
 	}
-	return max + edges
+	return total + edges
 }
 
 // item holds a child's computed main/cross metrics during arrangement.
@@ -219,11 +231,11 @@ func lineCross(items []item, l flexLine) float64 {
 	return max
 }
 
-// wrappedCrossSize returns a wrapping container's intrinsic cross-axis content
-// size: the summed cross sizes of its wrap lines plus the gap between lines.
-// mainAvail is the container's definite main-axis content size; availW/availH
-// is the space the container itself is being measured within.
-func wrappedCrossSize(n *Node, mainAvail, availW, availH float64) float64 {
+// crossContentSize returns a container's cross-axis content size for a main-axis
+// content size of mainAvail: the summed cross sizes of its lines (one, unless it
+// wraps) plus the gap between lines, each line resolved as arrange will lay it
+// out. availW/availH is the space the container itself is being measured within.
+func crossContentSize(n *Node, mainAvail, availW, availH float64) float64 {
 	s := &n.Style
 	refW, refH := availW, mainAvail
 	if s.isRow() {
@@ -235,9 +247,61 @@ func wrappedCrossSize(n *Node, mainAvail, availW, availH float64) float64 {
 		if li > 0 {
 			total += s.Gap
 		}
+		resolveLine(s, items[l.start:l.end], mainAvail, refH)
 		total += lineCross(items, l)
 	}
 	return total
+}
+
+// resolveLine resolves one line's main sizes: grow or shrink by the line's free
+// space, then clamp each item to its own min/max (a one-shot clamp; space freed by
+// a clamped item is not redistributed). It returns the free space left for
+// justify-content. In a row it then measures each item's cross size at its
+// resolved width: a Text in a flexed cell wraps at the width the cell gets, so the
+// line is as tall as what paint draws, not one line per cell. refH is the height
+// the items were measured against.
+func resolveLine(s *Style, line []item, mainAvail, refH float64) float64 {
+	row := s.isRow()
+	var totalBase, totalGrow, totalShrinkScaled float64
+	for i := range line {
+		totalBase += line[i].base + line[i].mainMargin0 + line[i].mainMargin1
+		totalGrow += line[i].node.Style.Grow
+		totalShrinkScaled += line[i].node.Style.Shrink * line[i].base
+	}
+
+	totalGap := 0.0
+	if len(line) > 1 {
+		totalGap = s.Gap * float64(len(line)-1)
+	}
+	free := mainAvail - totalBase - totalGap
+
+	switch {
+	case free > 0 && totalGrow > 0:
+		for i := range line {
+			line[i].main = line[i].base + line[i].node.Style.Grow/totalGrow*free
+		}
+		free = 0
+	case free < 0 && totalShrinkScaled > 0:
+		for i := range line {
+			scaled := line[i].node.Style.Shrink * line[i].base
+			line[i].main = line[i].base + scaled/totalShrinkScaled*free
+			if line[i].main < 0 {
+				line[i].main = 0
+			}
+		}
+		free = 0
+	}
+
+	for i := range line {
+		st := &line[i].node.Style
+		if row {
+			line[i].main = st.clampWidth(line[i].main, mainAvail)
+			line[i].crossBase = heightAt(line[i].node, line[i].main, refH)
+		} else {
+			line[i].main = st.clampHeight(line[i].main, mainAvail)
+		}
+	}
+	return free
 }
 
 // alignContentOffsets distributes positive leftover cross space among wrap
@@ -288,6 +352,12 @@ func arrange(n *Node) {
 	// Absolutely-positioned children are laid out separately (out of flow).
 	items := flowItems(n, contentW, contentH, mainAvail)
 	lines := breakLines(s, items, mainAvail)
+	// Resolve every line's main sizes first: a row's items are then measured at
+	// their resolved widths, which the lines' cross sizes below depend on.
+	free := make([]float64, len(lines))
+	for li, l := range lines {
+		free[li] = resolveLine(s, items[l.start:l.end], mainAvail, contentH)
+	}
 
 	// Resolve each line's cross extent and offset. A single non-wrapped line
 	// spans the whole cross axis, reducing to the classic single-line layout;
@@ -324,7 +394,7 @@ func arrange(n *Node) {
 
 	for li := range lines {
 		l := lines[li]
-		arrangeLine(n, items[l.start:l.end], l.cross, offsets[li], row, originX, originY, mainAvail)
+		arrangeLine(n, items[l.start:l.end], l.cross, offsets[li], row, originX, originY, free[li])
 	}
 
 	// Position absolutely-positioned children against this node's content box.
@@ -335,53 +405,12 @@ func arrange(n *Node) {
 	}
 }
 
-// arrangeLine lays out one line of flow items: grow/shrink resolves against
-// the line's own free space, justify-content distributes items along the main
-// axis, and each item aligns within the line's cross extent, which starts at
-// crossOffset into the container's cross axis.
-func arrangeLine(n *Node, line []item, cross, crossOffset float64, row bool, originX, originY, mainAvail float64) {
+// arrangeLine lays out one line of flow items whose main sizes resolveLine has
+// already resolved, leaving free main-axis space: justify-content distributes the
+// items along the main axis, and each aligns within the line's cross extent, which
+// starts at crossOffset into the container's cross axis.
+func arrangeLine(n *Node, line []item, cross, crossOffset float64, row bool, originX, originY, free float64) {
 	s := &n.Style
-
-	var totalBase, totalGrow, totalShrinkScaled float64
-	for i := range line {
-		totalBase += line[i].base + line[i].mainMargin0 + line[i].mainMargin1
-		totalGrow += line[i].node.Style.Grow
-		totalShrinkScaled += line[i].node.Style.Shrink * line[i].base
-	}
-
-	totalGap := 0.0
-	if len(line) > 1 {
-		totalGap = s.Gap * float64(len(line)-1)
-	}
-	free := mainAvail - totalBase - totalGap
-
-	switch {
-	case free > 0 && totalGrow > 0:
-		for i := range line {
-			line[i].main = line[i].base + line[i].node.Style.Grow/totalGrow*free
-		}
-		free = 0
-	case free < 0 && totalShrinkScaled > 0:
-		for i := range line {
-			scaled := line[i].node.Style.Shrink * line[i].base
-			line[i].main = line[i].base + scaled/totalShrinkScaled*free
-			if line[i].main < 0 {
-				line[i].main = 0
-			}
-		}
-		free = 0
-	}
-
-	// Clamp each item's resolved main size to its own min/max (a one-shot clamp;
-	// freed space from a maxed item is not redistributed).
-	for i := range line {
-		st := &line[i].node.Style
-		if row {
-			line[i].main = st.clampWidth(line[i].main, mainAvail)
-		} else {
-			line[i].main = st.clampHeight(line[i].main, mainAvail)
-		}
-	}
 
 	lead, gapExtra := justifyOffsets(s.Justify, free, len(line))
 
