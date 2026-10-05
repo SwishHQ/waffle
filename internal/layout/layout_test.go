@@ -409,6 +409,33 @@ func TestTextWithExplicitWidthAndHeightKeepsItsLines(t *testing.T) {
 	}
 }
 
+func TestTextInFlexedCellPaintsLinesAtCellWidth(t *testing.T) {
+	// The Text is measured at the row's full width and then at its cell's width,
+	// in the page's measurement pass and again in the row's arrangement; text
+	// measurement is memoised by width, so the lines it ends up with must be the
+	// ones for the cell's width, and its box must hold them.
+	res := layoutJSON(t, `{"version":"waffle-tree/v1","document":{"children":[
+		{"type":"PAGE","props":{"size":[300,200]},"children":[
+			{"type":"VIEW","props":{"style":{"flexDirection":"row"}},"children":[
+				{"type":"VIEW","props":{"style":{"flexGrow":1,"flexShrink":1,"flexBasis":0}},"children":[
+					{"type":"TEXT","props":{"style":{"fontSize":12}},"children":[
+						{"type":"TEXT_INSTANCE","value":"one two three four five six seven eight"}
+					]}
+				]},
+				{"type":"VIEW","props":{"style":{"flexGrow":1,"flexShrink":1,"flexBasis":0}}}
+			]}
+		]}
+	]}}`)
+	tb := firstText(res.Pages[0].Root)
+	row := res.Pages[0].Root.Children[0]
+	if tb == nil || len(tb.Lines) < 2 {
+		t.Fatalf("text in a 150pt cell should wrap to >= 2 lines, got %+v", tb)
+	}
+	if want := float64(len(tb.Lines)) * tb.LineHeight; row.Frame.H+1e-6 < want {
+		t.Errorf("row height %v cannot hold %d lines (%v)", row.Frame.H, len(tb.Lines), want)
+	}
+}
+
 func TestPaginationMinPresenceAhead(t *testing.T) {
 	// Block A (30pt) fits, but B has minPresenceAhead=50; only ~10pt remain after A,
 	// so B (and A? no — A stays, B breaks) is pushed to page 2.
