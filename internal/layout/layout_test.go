@@ -323,6 +323,92 @@ func TestPaginationUnbreakableTallerThanPageSplits(t *testing.T) {
 	}
 }
 
+// maxBottom is the lowest edge drawn anywhere in b's subtree.
+func maxBottom(b *Box) float64 {
+	m := b.Frame.Y + b.Frame.H
+	for _, c := range b.Children {
+		m = max(m, maxBottom(c))
+	}
+	return m
+}
+
+func TestPaginationUnbreakableAtPageTopStillSplits(t *testing.T) {
+	// The wrap=false block sits under its parent's 20pt top padding, so even at
+	// the top of a fresh page it ends at 110 > 100: keeping it whole can never
+	// fit. It must split like any other box rather than defer forever and push
+	// its parent off the page.
+	res := layoutJSON(t, `{"version":"waffle-tree/v1","document":{"children":[
+		{"type":"PAGE","props":{"size":[100,100]},"children":[
+			{"type":"VIEW","props":{"style":{"paddingTop":20}},"children":[
+				{"type":"VIEW","props":{"wrap":false},"children":[
+					{"type":"VIEW","props":{"style":{"height":30}}},
+					{"type":"VIEW","props":{"style":{"height":30}}},
+					{"type":"VIEW","props":{"style":{"height":30}}}
+				]},
+				{"type":"VIEW","children":[
+					{"type":"VIEW","props":{"style":{"height":50}}},
+					{"type":"VIEW","props":{"style":{"height":50}}},
+					{"type":"VIEW","props":{"style":{"height":50}}},
+					{"type":"VIEW","props":{"style":{"height":50}}}
+				]}
+			]}
+		]}
+	]}}`)
+	if len(res.Pages) < 4 {
+		t.Errorf("310pt of flow on 100pt pages needs >= 4 pages, got %d", len(res.Pages))
+	}
+	for i, pg := range res.Pages {
+		for _, ch := range pg.Root.Children {
+			if b := maxBottom(ch); b > 100+1e-6 {
+				t.Errorf("page %d draws to y=%v, below the 100pt page", i+1, b)
+			}
+		}
+	}
+}
+
+func TestPaginationUnbreakableNestedMovesWhole(t *testing.T) {
+	// Inside a padded parent, the wrap=false block follows a 60pt sibling and
+	// straddles the page, so it moves whole to the top of page 2.
+	res := layoutJSON(t, `{"version":"waffle-tree/v1","document":{"children":[
+		{"type":"PAGE","props":{"size":[100,100]},"children":[
+			{"type":"VIEW","props":{"style":{"paddingTop":10}},"children":[
+				{"type":"VIEW","props":{"style":{"height":60}}},
+				{"type":"VIEW","props":{"wrap":false},"children":[
+					{"type":"VIEW","props":{"style":{"height":20}}},
+					{"type":"VIEW","props":{"style":{"height":20}}}
+				]}
+			]}
+		]}
+	]}}`)
+	if len(res.Pages) != 2 {
+		t.Fatalf("pages = %d, want 2", len(res.Pages))
+	}
+	u := res.Pages[1].Root.Children[0].Children[0]
+	if len(u.Children) != 2 || u.Frame.H != 40 || u.Frame.Y > 1e-6 {
+		t.Errorf("unbreakable block should arrive whole at the top of page 2: frame=%+v children=%d", u.Frame, len(u.Children))
+	}
+}
+
+func TestTextWithExplicitWidthAndHeightKeepsItsLines(t *testing.T) {
+	// A fixed-size Text is still measured: measuring is what lays its content out
+	// into the lines the renderer paints.
+	for _, dir := range []string{"column", "row"} {
+		res := layoutJSON(t, `{"version":"waffle-tree/v1","document":{"children":[
+			{"type":"PAGE","props":{"size":[300,200]},"children":[
+				{"type":"VIEW","props":{"style":{"flexDirection":"`+dir+`"}},"children":[
+					{"type":"TEXT","props":{"style":{"fontSize":12,"width":100,"height":40}},"children":[
+						{"type":"TEXT_INSTANCE","value":"Hello wrapped world of text"}
+					]}
+				]}
+			]}
+		]}}`)
+		tb := res.Pages[0].Root.Children[0].Children[0]
+		if tb.Text == nil || len(tb.Text.Lines) < 2 {
+			t.Errorf("%s: fixed-size Text should paint its content wrapped at 100pt, got %+v", dir, tb.Text)
+		}
+	}
+}
+
 func TestPaginationMinPresenceAhead(t *testing.T) {
 	// Block A (30pt) fits, but B has minPresenceAhead=50; only ~10pt remain after A,
 	// so B (and A? no — A stays, B breaks) is pushed to page 2.

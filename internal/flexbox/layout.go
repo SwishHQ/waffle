@@ -16,13 +16,20 @@ func measure(n *Node, availW, availH float64) Size {
 	s := &n.Style
 	w, wOK := s.Width.resolve(availW)
 	h, hOK := s.Height.resolve(availH)
-	if len(n.Children) == 0 && n.Measure != nil && !wOK {
-		// An auto-width leaf: one measurement of its content box at the available
-		// width gives both sides. The measure function reports content size; the
-		// border box adds the node's own padding and border.
-		mw, mh := contentSize(s, availW, availH)
+	if len(n.Children) == 0 && n.Measure != nil {
+		// A leaf is always measured, even at a fixed size: measuring is also what
+		// lays a Text out into the lines paint draws. It measures its content box,
+		// at its own width when that is definite. The measure function reports
+		// content size; the border box adds the node's own padding and border.
+		at := availW
+		if wOK {
+			at = w
+		}
+		mw, mh := contentSize(s, at, availH)
 		m := n.Measure(mw, mh)
-		w = m.W + s.horizEdges()
+		if !wOK {
+			w = m.W + s.horizEdges()
+		}
 		if !hOK {
 			h = m.H + s.vertEdges()
 		}
@@ -54,14 +61,18 @@ func measure(n *Node, availW, availH float64) Size {
 // container measures its children inside its own content box.
 func heightAt(n *Node, w, availH float64) float64 {
 	s := &n.Style
-	if h, ok := s.Height.resolve(availH); ok {
-		return s.clampHeight(h, availH)
-	}
+	leaf := len(n.Children) == 0 && n.Measure != nil
 	var h float64
-	if len(n.Children) == 0 && n.Measure != nil {
+	if leaf {
+		// Measured even under an explicit height: measuring is what lays the text
+		// out into lines at w, the width it is painted at.
 		mw, mh := contentSize(s, w, availH)
 		h = n.Measure(mw, mh).H + s.vertEdges()
-	} else {
+	}
+	if v, ok := s.Height.resolve(availH); ok {
+		return s.clampHeight(v, availH)
+	}
+	if !leaf {
 		h = intrinsicHeight(n, w, availH)
 	}
 	if s.AspectRatio > 0 && !s.Width.IsAuto() {
