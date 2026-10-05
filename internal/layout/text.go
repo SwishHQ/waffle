@@ -43,6 +43,36 @@ type textResolve struct {
 
 	runs     []textRun       // inline styled runs; empty for the single-style path
 	runLines [][]RunFragment // wrapped run fragments per line (set by measure)
+
+	memo []measureMemo // recent measurements by available width
+}
+
+// measureMemo is one measurement at an available width. Wrapping depends only on
+// availW (content and typography are fixed once resolved), and layout measures
+// the same leaf at the same width repeatedly (an ancestor's measurement, then its
+// own arrangement), so a hit restores the lines that measurement produced.
+type measureMemo struct {
+	availW   float64
+	size     flexbox.Size
+	lines    []string
+	runLines [][]RunFragment
+}
+
+// measure is the flexbox measure function for a Text leaf, memoised by availW.
+func (t *textResolve) measure(availW, availH float64) flexbox.Size {
+	for i := range t.memo {
+		if m := &t.memo[i]; m.availW == availW {
+			t.lines, t.runLines = m.lines, m.runLines
+			return m.size
+		}
+	}
+	sz := t.measureAt(availW, availH)
+	if len(t.memo) >= 4 {
+		copy(t.memo, t.memo[1:])
+		t.memo = t.memo[:3]
+	}
+	t.memo = append(t.memo, measureMemo{availW: availW, size: sz, lines: t.lines, runLines: t.runLines})
+	return sz
 }
 
 // textRun is one styled inline piece of a Text's content.
@@ -67,7 +97,7 @@ func (t *textResolve) stringWidth(s string) float64 {
 // measure is the flexbox measure function for a Text leaf. It greedily wraps the
 // content to the available width and reports the widest line and the total
 // height (lines × line height). The wrapped lines are stored for the renderer.
-func (t *textResolve) measure(availW, availH float64) flexbox.Size {
+func (t *textResolve) measureAt(availW, availH float64) flexbox.Size {
 	if len(t.runs) > 0 {
 		return t.measureRuns(availW)
 	}

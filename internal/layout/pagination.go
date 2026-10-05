@@ -4,9 +4,11 @@ import "github.com/SwishHQ/waffle/internal/tree"
 
 // paginate splits a laid-out page into output pages, filling each page from the
 // flow and splitting a straddling child at a line (Text) or child (View)
-// boundary. Unbreakable content (a leaf, or something taller than a whole page)
-// is moved or placed whole. Each output page keeps the page's background and
-// padding. When wrap is false the page is never split.
+// boundary. Unbreakable content (a leaf, or an element with wrap={false} that a
+// fresh page can hold) is moved whole; anything taller than a whole page is
+// split, or placed whole when it cannot be split. Each output page keeps the
+// page's background and padding. When the page's own wrap is false the page is
+// never split.
 func paginate(p *Page, contentTop, availH float64, wrap bool) []*Page {
 	root := p.Root
 
@@ -67,7 +69,13 @@ func paginateFlow(p *Page, root *Box, flow []*Box, contentTop, availH float64) [
 
 	for len(remaining) > 0 {
 		boundary := contentTop + pageTopFlow + availH
-		fit, rest := splitFlow(remaining, boundary)
+		fit, rest := splitFlow(remaining, boundary, availH, true)
+		if len(fit) == 0 {
+			// Keeping wrap={false} boxes whole left this page empty: one already starts
+			// at the top (or under its parents' padding there) and still runs past the
+			// page, so deferring it again cannot help. Split it like any other box.
+			fit, rest = splitFlow(remaining, boundary, availH, false)
+		}
 
 		if len(fit) == 0 {
 			// Nothing fit (a single item taller than the page): place it whole and
@@ -95,8 +103,10 @@ func paginateFlow(p *Page, root *Box, flow []*Box, contentTop, availH float64) [
 }
 
 // splitFlow partitions a sequence of sibling boxes at the vertical boundary,
-// splitting the first straddling child if it can be split.
-func splitFlow(boxes []*Box, boundary float64) (fit, rest []*Box) {
+// splitting the first straddling child if it can be split. With keepWhole, an
+// unbreakable (wrap={false}) child no taller than pageH, a whole page's flow
+// height, moves whole to the next page instead of splitting.
+func splitFlow(boxes []*Box, boundary, pageH float64, keepWhole bool) (fit, rest []*Box) {
 	for idx, ch := range boxes {
 		if len(fit) > 0 && ch.Node != nil {
 			// A forced break ends the current page before this element.
@@ -118,12 +128,14 @@ func splitFlow(boxes []*Box, boundary float64) (fit, rest []*Box) {
 			fit = append(fit, ch)
 			continue
 		}
-		// This child does not fully fit.
-		if ch.Frame.Y >= boundary-1e-6 {
+		// This child does not fully fit. It moves whole if it starts past the
+		// boundary, or if it is unbreakable and a fresh page can hold it; one taller
+		// than a page still splits, since nowhere could keep it whole.
+		if ch.Frame.Y >= boundary-1e-6 || (keepWhole && unbreakable(ch) && ch.Frame.H <= pageH+1e-6) {
 			rest = append(rest, boxes[idx:]...)
 			return fit, rest
 		}
-		cf, cr := splitBox(ch, boundary)
+		cf, cr := splitBox(ch, boundary, pageH, keepWhole)
 		if cf != nil {
 			fit = append(fit, cf)
 		}
@@ -139,15 +151,20 @@ func splitFlow(boxes []*Box, boundary float64) (fit, rest []*Box) {
 // splitBox splits a box that straddles the boundary into a part that stays on
 // the page and a part that continues on the next. It returns (box, nil) if it
 // wholly fits, (nil, box) if it cannot be split, or both parts on a real split.
-func splitBox(b *Box, boundary float64) (fit, rest *Box) {
+func splitBox(b *Box, boundary, pageH float64, keepWhole bool) (fit, rest *Box) {
 	switch {
 	case b.Text != nil && len(b.Text.Lines) > 1:
 		return splitTextBox(b, boundary)
 	case len(b.Children) > 0:
-		return splitViewBox(b, boundary)
+		return splitViewBox(b, boundary, pageH, keepWhole)
 	default:
 		return nil, b // unbreakable leaf
 	}
+}
+
+// unbreakable reports whether a box opted out of page splitting with wrap={false}.
+func unbreakable(b *Box) bool {
+	return b.Node != nil && b.Node.Wrap != nil && !*b.Node.Wrap
 }
 
 func splitTextBox(b *Box, boundary float64) (fit, rest *Box) {
@@ -203,8 +220,8 @@ func splitTextBox(b *Box, boundary float64) (fit, rest *Box) {
 	return &fitBox, &restBox
 }
 
-func splitViewBox(b *Box, boundary float64) (fit, rest *Box) {
-	fitKids, restKids := splitFlow(b.Children, boundary)
+func splitViewBox(b *Box, boundary, pageH float64, keepWhole bool) (fit, rest *Box) {
+	fitKids, restKids := splitFlow(b.Children, boundary, pageH, keepWhole)
 	if len(fitKids) == 0 {
 		return nil, b
 	}
