@@ -171,28 +171,21 @@ func TestPaginationTableHeaderMovesWithItsRows(t *testing.T) {
 }
 
 func TestPaginationHeaderAndRowTallerThanPage(t *testing.T) {
-	// A 30pt header over an 80pt leaf row cannot share any 100pt page. Repeating
-	// the header would carry the same overflow to every page, so the header stays
-	// on page 1 alone and the rows continue unrepeated: content is never lost and
-	// pagination ends.
-	res := layoutJSON(t, `{"version":"waffle-tree/v1","document":{"children":[
-		{"type":"PAGE","props":{"size":[200,100]},"children":[
-			{"type":"VIEW","props":{"id":"table"},"children":[
-				{"type":"VIEW","props":{"id":"hdr","fixed":true,"style":{"height":30}}},
-				{"type":"VIEW","props":{"id":"big","style":{"height":80}}},
-				{"type":"VIEW","props":{"id":"small","style":{"height":15}}}
-			]}
+	// A 30pt header over an 80pt leaf row cannot share any 100pt page. Page 1
+	// ends on the header (its first and only place to start); page 2 holds big
+	// and s1 without a copy, since a copy would push big off the page; the header
+	// returns on page 3. Content is never lost and pagination ends.
+	pages, res := tablePages(t, `{"type":"PAGE","props":{"size":[200,100]},"children":[
+		{"type":"VIEW","props":{"id":"table"},"children":[
+			{"type":"VIEW","props":{"id":"hdr","fixed":true,"style":{"height":30}}},
+			{"type":"VIEW","props":{"id":"big","style":{"height":80}}},`+leaves("s", 3, 15)+`
 		]}
-	]}}`)
-	if len(res.Pages) != 2 {
-		t.Fatalf("pages = %d, want 2", len(res.Pages))
-	}
-	if got := kidIDs(byID(res.Pages[0].Root, "table")); strings.Join(got, ",") != "hdr" {
-		t.Errorf("page 1 table = %v, want hdr", got)
-	}
-	table := byID(res.Pages[1].Root, "table")
-	if got := kidIDs(table); strings.Join(got, ",") != "big,small" {
-		t.Errorf("page 2 table = %v, want big,small", got)
+	]}`)
+	wantPages(t, pages, "hdr", "big,s1", "hdr,s2,s3")
+	if len(res.Pages) == 3 {
+		frameEq(t, "page 2 big", byID(res.Pages[1].Root, "big").Frame, 0, 0, 200, 80)
+		frameEq(t, "page 3 header", byID(res.Pages[2].Root, "hdr").Frame, 0, 0, 200, 30)
+		frameEq(t, "page 3 s2", byID(res.Pages[2].Root, "s2").Frame, 0, 30, 200, 15)
 	}
 	for i, pg := range res.Pages {
 		if b := maxBottom(pg.Root.Children[0]); b > 100+1e-6 {
@@ -221,6 +214,12 @@ func TestPaginationFixedInRowIsNotAHeader(t *testing.T) {
 	if got := kidIDs(byID(res.Pages[1].Root, "row")); strings.Join(got, ",") != "col" {
 		t.Errorf("page 2 row = %v, want col alone (no repeated copy)", got)
 	}
+	col := byID(res.Pages[1].Root, "col")
+	if got := kidIDs(col); strings.Join(got, ",") != "r7,r8,r9,r10" {
+		t.Errorf("page 2 col = %v, want r7..r10", got)
+	}
+	frameEq(t, "page 2 col", col.Frame, 20, 0, 100, 60)
+	frameEq(t, "page 2 r7", col.Children[0].Frame, 20, 0, 100, 15)
 }
 
 func TestPaginationHeaderLeavesCaptionBehind(t *testing.T) {
@@ -245,4 +244,192 @@ func TestPaginationHeaderLeavesCaptionBehind(t *testing.T) {
 		t.Errorf("page 2 table = %v, want hdr,r1,r2,r3", got)
 	}
 	frameEq(t, "page 2 header", table.Children[0].Frame, 0, 0, 200, 20)
+}
+
+// leaves is n leaf rows of height h with ids prefix1..prefixN.
+func leaves(prefix string, n int, h float64) string {
+	rows := make([]string, n)
+	for i := range rows {
+		rows[i] = fmt.Sprintf(`{"type":"VIEW","props":{"id":"%s%d","style":{"height":%v}}}`, prefix, i+1, h)
+	}
+	return strings.Join(rows, ",")
+}
+
+// tablePages lays out doc and returns, per page, the child ids of the box
+// with id "table" ("" when the page has none).
+func tablePages(t *testing.T, doc string) ([]string, *Result) {
+	t.Helper()
+	res := layoutJSON(t, `{"version":"waffle-tree/v1","document":{"children":[`+doc+`]}}`)
+	var pages []string
+	for _, pg := range res.Pages {
+		if tb := byID(pg.Root, "table"); tb != nil {
+			pages = append(pages, strings.Join(kidIDs(tb), ","))
+		} else {
+			pages = append(pages, "")
+		}
+	}
+	return pages, res
+}
+
+func wantPages(t *testing.T, got []string, want ...string) {
+	t.Helper()
+	if strings.Join(got, " | ") != strings.Join(want, " | ") {
+		t.Errorf("table per page:\n got %q\nwant %q", got, want)
+	}
+}
+
+func TestPaginationUnbreakableRowUnderHeaderStaysWhole(t *testing.T) {
+	// big (wrap={false}, 86pt) fits a page alone but not under the 20pt header.
+	// Keeping it whole wins: page 2 shows it without the header, which returns on
+	// page 3. Splitting it under the header would break the wrap={false} promise.
+	pages, res := tablePages(t, `{"type":"PAGE","props":{"size":[200,100]},"children":[
+		{"type":"VIEW","props":{"id":"table"},"children":[`+headerJSON+`,
+			{"type":"VIEW","props":{"id":"r1","style":{"height":15}}},
+			{"type":"VIEW","props":{"id":"big","wrap":false},"children":[`+leaves("b", 4, 21.5)+`]},
+			{"type":"VIEW","props":{"id":"r2","style":{"height":15}}},
+			{"type":"VIEW","props":{"id":"r3","style":{"height":15}}}
+		]}
+	]}`)
+	wantPages(t, pages, "hdr,r1", "big", "hdr,r2,r3")
+	if len(res.Pages) == 3 {
+		big := byID(res.Pages[1].Root, "big")
+		frameEq(t, "page 2 big", big.Frame, 0, 0, 200, 86)
+		if n := len(big.Children); n != 4 {
+			t.Errorf("big should arrive whole with 4 children, got %d", n)
+		}
+		frameEq(t, "page 3 header", byID(res.Pages[2].Root, "hdr").Frame, 0, 0, 200, 20)
+	}
+}
+
+func TestPaginationTallRowMidTableSkipsHeaderOnce(t *testing.T) {
+	// r4 (90pt) cannot share a page with the 20pt header: page 2 holds r4 alone,
+	// and the header comes back on page 3 rather than being lost.
+	pages, _ := tablePages(t, `{"type":"PAGE","props":{"size":[200,100]},"children":[
+		{"type":"VIEW","props":{"id":"table"},"children":[`+headerJSON+`,`+leaves("r", 3, 15)+`,
+			{"type":"VIEW","props":{"id":"r4","style":{"height":90}}},
+			{"type":"VIEW","props":{"id":"r5","style":{"height":15}}},
+			{"type":"VIEW","props":{"id":"r6","style":{"height":15}}}
+		]}
+	]}`)
+	wantPages(t, pages, "hdr,r1,r2,r3", "r4", "hdr,r5,r6")
+}
+
+func TestPaginationBreakUnderRepeatedHeader(t *testing.T) {
+	// r2 breaks onto page 2. The repeated header above it there is not content
+	// placed before it, so the break does not fire again and empty the page.
+	pages, _ := tablePages(t, `{"type":"PAGE","props":{"size":[200,100]},"children":[
+		{"type":"VIEW","props":{"id":"table"},"children":[`+headerJSON+`,
+			{"type":"VIEW","props":{"id":"r1","style":{"height":15}}},
+			{"type":"VIEW","props":{"id":"r2","break":true,"style":{"height":15}}},`+leaves("x", 8, 15)+`
+		]}
+	]}`)
+	wantPages(t, pages, "hdr,r1", "hdr,r2,x1,x2,x3,x4", "hdr,x5,x6,x7,x8")
+}
+
+func TestPaginationMinPresenceAheadUnderRepeatedHeader(t *testing.T) {
+	// g needs 70pt after it, so it starts page 2. Under the repeated header it
+	// stays put: breaking before it again would leave a page holding the header.
+	pages, _ := tablePages(t, `{"type":"PAGE","props":{"size":[200,100]},"children":[
+		{"type":"VIEW","props":{"id":"table"},"children":[`+headerJSON+`,
+			{"type":"VIEW","props":{"id":"r1","style":{"height":30}}},
+			{"type":"VIEW","props":{"id":"r2","style":{"height":30}}},
+			{"type":"VIEW","props":{"id":"g","minPresenceAhead":70,"style":{"height":15}}},`+leaves("x", 6, 15)+`
+		]}
+	]}`)
+	wantPages(t, pages, "hdr,r1,r2", "hdr,g,x1,x2,x3,x4", "hdr,x5,x6")
+}
+
+func TestPaginationHeaderWithAbsoluteSiblingMovesWithRows(t *testing.T) {
+	// An absolute badge after the header is not a row: the header still may not
+	// end page 1, so the table moves whole and its header prints once on page 2.
+	pages, _ := tablePages(t, `{"type":"PAGE","props":{"size":[200,100]},"children":[
+		{"type":"VIEW","props":{"id":"spacer","style":{"height":70}}},
+		{"type":"VIEW","props":{"id":"table"},"children":[`+headerJSON+`,
+			{"type":"VIEW","props":{"id":"badge","style":{"position":"absolute","top":0,"right":0,"width":10,"height":5}}},`+leaves("r", 2, 15)+`
+		]}
+	]}`)
+	wantPages(t, pages, "", "hdr,badge,r1,r2")
+}
+
+func TestPaginationRepeatedHeaderKeepsItsInset(t *testing.T) {
+	// The table's 2pt top border, 10pt top padding and the header's 5pt margins
+	// place the header 17pt below the table top and its first row 25pt below the
+	// header. Each continuation reproduces both offsets.
+	pages, res := tablePages(t, `{"type":"PAGE","props":{"size":[200,100]},"children":[
+		{"type":"VIEW","props":{"id":"table","style":{"paddingTop":10,"borderTopWidth":2}},"children":[
+			{"type":"VIEW","props":{"id":"hdr","fixed":true,"style":{"height":20,"marginTop":5,"marginBottom":5}}},`+leaves("x", 8, 15)+`
+		]}
+	]}`)
+	wantPages(t, pages, "hdr,x1,x2,x3", "hdr,x4,x5,x6", "hdr,x7,x8")
+	for i, pg := range res.Pages {
+		tb := byID(pg.Root, "table")
+		if tb == nil || len(tb.Children) < 2 {
+			continue
+		}
+		hdr, row := tb.Children[0], tb.Children[1]
+		if !near(hdr.Frame.Y-tb.Frame.Y, 17) || !near(row.Frame.Y-hdr.Frame.Y, 25) {
+			t.Errorf("page %d: header %vpt below the table top and row %vpt below the header, want 17 and 25",
+				i+1, hdr.Frame.Y-tb.Frame.Y, row.Frame.Y-hdr.Frame.Y)
+		}
+	}
+}
+
+func TestPaginationConsecutiveHeadersRepeatInOrder(t *testing.T) {
+	pages, res := tablePages(t, `{"type":"PAGE","props":{"size":[200,100]},"children":[
+		{"type":"VIEW","props":{"id":"table"},"children":[
+			{"type":"VIEW","props":{"id":"h1","fixed":true,"style":{"height":10}}},
+			{"type":"VIEW","props":{"id":"h2","fixed":true,"style":{"height":12}}},`+leaves("x", 10, 15)+`
+		]}
+	]}`)
+	wantPages(t, pages, "h1,h2,x1,x2,x3,x4,x5", "h1,h2,x6,x7,x8,x9,x10")
+	if len(res.Pages) == 2 {
+		tb := byID(res.Pages[1].Root, "table")
+		frameEq(t, "page 2 h1", tb.Children[0].Frame, 0, 0, 200, 10)
+		frameEq(t, "page 2 h2", tb.Children[1].Frame, 0, 10, 200, 12)
+		frameEq(t, "page 2 x6", tb.Children[2].Frame, 0, 22, 200, 15)
+	}
+}
+
+func TestPaginationTextRowSplitsUnderHeader(t *testing.T) {
+	// A long Text row splits by lines; its continuation sits under the header.
+	pages, res := tablePages(t, `{"type":"PAGE","props":{"size":[200,100]},"children":[
+		{"type":"VIEW","props":{"id":"table"},"children":[`+headerJSON+`,
+			{"type":"VIEW","props":{"id":"x1","style":{"height":15}}},
+			{"type":"TEXT","props":{"id":"txt","style":{"width":60,"fontSize":10,"lineHeight":1}},"children":[
+				{"type":"TEXT_INSTANCE","value":"one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty"}
+			]}
+		]}
+	]}`)
+	if len(pages) < 2 || pages[0] != "hdr,x1,txt" || pages[1] != "hdr,txt" {
+		t.Fatalf("table per page = %q, want hdr,x1,txt then hdr,txt", pages)
+	}
+	total := 0
+	for _, pg := range res.Pages {
+		total += len(byID(pg.Root, "txt").Text.Lines)
+	}
+	first := byID(res.Pages[0].Root, "txt")
+	if lines := len(first.Text.Lines) + len(byID(res.Pages[1].Root, "txt").Text.Lines); len(res.Pages) == 2 && lines != total {
+		t.Errorf("lines split %d across pages, want %d", lines, total)
+	}
+	frameEq(t, "page 2 txt top", Rect{Y: byID(res.Pages[1].Root, "txt").Frame.Y}, 0, 20, 0, 0)
+}
+
+func TestPaginationPageFixedAndViewHeaderTogether(t *testing.T) {
+	// A page-level fixed footer and a table header both appear on every page.
+	_, res := tablePages(t, `{"type":"PAGE","props":{"size":[200,100],"style":{"paddingBottom":10}},"children":[
+		{"type":"VIEW","props":{"id":"table"},"children":[`+headerJSON+`,`+leaves("x", 10, 15)+`]},
+		{"type":"VIEW","props":{"id":"footer","fixed":true,"style":{"position":"absolute","bottom":0,"left":0,"width":200,"height":10}}}
+	]}`)
+	if len(res.Pages) != 3 {
+		t.Fatalf("pages = %d, want 3", len(res.Pages))
+	}
+	for i, pg := range res.Pages {
+		// bottom:0 resolves against the content box, above the 10pt padding.
+		if f := byID(pg.Root, "footer"); f == nil || !near(f.Frame.Y, 80) {
+			t.Errorf("page %d footer = %+v, want at y=80", i+1, f)
+		}
+		if tb := byID(pg.Root, "table"); tb == nil || tb.Children[0].Node.ID != "hdr" || !near(tb.Children[0].Frame.Y, 0) {
+			t.Errorf("page %d should open with the table header at y=0", i+1)
+		}
+	}
 }

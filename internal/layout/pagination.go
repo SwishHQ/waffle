@@ -66,37 +66,12 @@ func cloneBox(b *Box) *Box {
 func paginateFlow(p *Page, root *Box, flow []*Box, contentTop, availH float64) []*Page {
 	var out []*Page
 	remaining := flow
-	pageTopFlow := 0.0 // flow offset mapped to the top of the current page's content
+	top := contentTop // the flow y drawn at the top of the current page's content
 
 	for len(remaining) > 0 {
-		boundary := contentTop + pageTopFlow + availH
-		var fit, rest []*Box
-		for _, m := range []splitMode{
-			{pageH: availH, keepWhole: true, headers: true},
-			// Keeping boxes whole left this page empty: one already starts at the top
-			// (or under its parents' padding there) and still runs past the page, so
-			// deferring it again cannot help. Split it like any other box.
-			{pageH: availH, headers: true},
-			// Still empty: a repeated header and the content under it overflow a page
-			// together. Stop repeating it so that content can break.
-			{pageH: availH},
-		} {
-			if fit, rest, _ = splitFlow(remaining, boundary, m); len(fit) > 0 {
-				break
-			}
-		}
-
-		if len(fit) == 0 {
-			// Nothing fit (a single item taller than the page): place it whole and
-			// let it overflow, to guarantee progress.
-			if len(rest) == 0 {
-				break
-			}
-			fit, rest = rest[:1], rest[1:]
-		}
-
+		fit, rest, pageTop := fillPage(remaining, top, availH)
 		for _, ch := range fit {
-			shiftBox(ch, -pageTopFlow)
+			shiftBox(ch, contentTop-pageTop)
 		}
 		rc := *root
 		rc.Children = fit
@@ -105,28 +80,97 @@ func paginateFlow(p *Page, root *Box, flow []*Box, contentTop, availH float64) [
 		if len(rest) == 0 {
 			break
 		}
-		pageTopFlow = rest[0].Frame.Y - contentTop
+		top = rest[0].Frame.Y
 		remaining = rest
 	}
 	return out
 }
 
+// fillPage picks what goes on a page whose content starts at flow y top and is
+// availH tall, returning the flow y it drew at that top. It tries each of these
+// in turn until one places something:
+//
+//  1. keep wrap={false} and fixed boxes whole;
+//  2. as 1, without the header copies that open the page: a header and the row
+//     under it cannot share a page, so the row goes alone and the header returns
+//     on the next page;
+//  3. split boxes kept whole: one starts at the top and still runs past it;
+//  4. as 3, without the header copies;
+//  5. let a View's own header end the page with no row under it.
+//
+// If none does, it places the first item whole and lets it overflow.
+func fillPage(remaining []*Box, top, availH float64) (fit, rest []*Box, pageTop float64) {
+	type try struct {
+		boxes []*Box
+		top   float64
+		m     splitMode
+	}
+	whole := splitMode{pageH: availH, keepWhole: true}
+	split := splitMode{pageH: availH}
+	bare, bareTop := remaining, top
+	tries := []try{{remaining, top, whole}}
+	if d := dropCopies(remaining[0]); d != nil {
+		bare = append([]*Box{d}, remaining[1:]...)
+		bareTop = d.Frame.Y
+		tries = append(tries, try{bare, bareTop, whole}, try{remaining, top, split}, try{bare, bareTop, split})
+	} else {
+		tries = append(tries, try{remaining, top, split})
+	}
+	tries = append(tries, try{bare, bareTop, splitMode{pageH: availH, loneHeader: true}})
+	for _, t := range tries {
+		if fit, rest, _ = splitFlow(t.boxes, t.top+availH, t.m); len(fit) > 0 {
+			return fit, rest, t.top
+		}
+	}
+	return bare[:1], bare[1:], bareTop
+}
+
+// dropCopies returns b without the header copies that open it (or open its
+// first child, recursively), keeping them to repeat on its next continuation.
+// It is nil when b opens with none. b itself is left untouched.
+func dropCopies(b *Box) *Box {
+	k := 0
+	for k < len(b.Children) && b.Children[k].copied {
+		k++
+	}
+	if k == len(b.Children) {
+		return nil
+	}
+	first := dropCopies(b.Children[k])
+	if k == 0 && first == nil {
+		return nil
+	}
+	d := *b
+	d.Children = append([]*Box(nil), b.Children[k:]...)
+	if first != nil {
+		d.Children[0] = first
+	}
+	d.pending = append(append([]*Box(nil), b.pending...), b.Children[:k]...)
+	d.Frame.Y = d.Children[0].Frame.Y
+	d.Frame.H = b.Frame.Y + b.Frame.H - d.Frame.Y
+	return &d
+}
+
 // splitMode is one attempt at filling a page.
 type splitMode struct {
-	pageH     float64 // a whole page's flow height
-	keepWhole bool    // move wrap={false} and nested fixed boxes whole when a fresh page holds them
-	headers   bool    // repeat a split View's fixed children atop its continuation
+	pageH      float64 // a whole page's flow height
+	keepWhole  bool    // move wrap={false} and nested fixed boxes whole when a fresh page holds them
+	loneHeader bool    // let a View's own header end a page with no row under it
 }
 
 // splitFlow partitions a sequence of sibling boxes at the vertical boundary,
-// splitting the first straddling child if it can be split. With keepWhole, a
+// splitting the first straddling child if it can be split. A forced break or
+// minPresenceAhead ends the page only after in-flow content other than
+// headers: a break on a View's first row is ignored, as on its first child.
+// With keepWhole, a
 // box kept whole (wrap={false}, or a nested fixed header) no taller than pageH
 // moves whole to the next page instead of splitting. grow is how much taller the
 // rest runs than the boxes it continues (repeated headers), already applied to
 // the siblings below the split child.
 func splitFlow(boxes []*Box, boundary float64, m splitMode) (fit, rest []*Box, grow float64) {
+	placed := false // fit holds in-flow content besides headers
 	for idx, ch := range boxes {
-		if len(fit) > 0 && ch.Node != nil {
+		if placed && ch.Node != nil {
 			// A forced break ends the current page before this element.
 			if ch.Node.Break {
 				rest = append(rest, boxes[idx:]...)
@@ -144,6 +188,7 @@ func splitFlow(boxes []*Box, boundary float64, m splitMode) (fit, rest []*Box, g
 		}
 		if ch.Frame.Y+ch.Frame.H <= boundary+1e-6 {
 			fit = append(fit, ch)
+			placed = placed || (!header(ch) && !absolute(ch))
 			continue
 		}
 		// This child does not fully fit. It moves whole if it starts past the
@@ -252,11 +297,12 @@ func splitTextBox(b *Box, boundary float64) (fit, rest *Box) {
 	return &fitBox, &restBox
 }
 
-// splitViewBox splits a View between its children. With headers on, the fixed
-// children a column View placed on this page are its header: they stay in the
-// flow here, and the continuation starts with deep clones of them, pushing its
+// splitViewBox splits a View between its children. The fixed in-flow children
+// a column View places on this page are its header: they stay in the flow here,
+// and the continuation opens with copies of them at the same inset, pushing its
 // content down to make room (as react-pdf repeats a table's header row). A
-// header never ends a page with nothing under it; it moves on with its content.
+// header never ends a page with nothing under it, unless m.loneHeader allows
+// the View's own header to; it moves on with the rows it heads.
 func splitViewBox(b *Box, boundary float64, m splitMode) (fit, rest *Box, grow float64) {
 	fitKids, restKids, grow := splitFlow(b.Children, boundary, m)
 	if len(fitKids) == 0 {
@@ -265,34 +311,54 @@ func splitViewBox(b *Box, boundary float64, m splitMode) (fit, rest *Box, grow f
 	if len(restKids) == 0 {
 		return b, nil, 0
 	}
-	headers := m.headers && stacksVertically(b)
-	if headers {
-		for n := len(fitKids); n > 0 && isHeader(b, fitKids, n-1); n-- {
-			restKids = append([]*Box{fitKids[n-1]}, restKids...)
-			fitKids = fitKids[:n-1]
+	repeats := stacksVertically(b)
+	if repeats && !m.loneHeader {
+		// Out-of-flow siblings after the header are not rows: they move with it.
+		n := len(fitKids)
+		for n > 0 && (isHeader(b, fitKids, n-1) || absolute(fitKids[n-1])) {
+			n--
 		}
-		if len(fitKids) == 0 {
-			return nil, b, 0
+		for i := n; i < len(fitKids); i++ {
+			if isHeader(b, fitKids, i) {
+				restKids = append(append([]*Box(nil), fitKids[n:]...), restKids...)
+				fitKids = fitKids[:n]
+				break
+			}
 		}
+	}
+	if allCopies(fitKids) {
+		return nil, b, 0
 	}
 
 	fitBox := *b
 	fitBox.Children = fitKids
 	fitBox.Frame.H = boundary - b.Frame.Y
+	fitBox.pending = nil
 
 	restTop := restKids[0].Frame.Y
-	var kids []*Box
-	if headers {
-		y := restTop
+	var heads []*Box
+	if repeats {
+		y := restTop + b.edgeTop
+		add := func(h *Box, advance float64) {
+			if len(heads) == 0 {
+				y += h.marginTop
+			}
+			c := cloneBox(h)
+			c.copied, c.advance, c.pending = true, advance, nil
+			shiftBox(c, y-c.Frame.Y)
+			heads = append(heads, c)
+			y += advance
+		}
+		for _, h := range b.pending {
+			add(h, h.advance)
+		}
 		for i := range fitKids {
 			if isHeader(b, fitKids, i) {
-				h := cloneBox(fitKids[i])
-				shiftBox(h, y-h.Frame.Y)
-				kids = append(kids, h)
-				y += headerAdvance(b, i)
+				add(fitKids[i], headerAdvance(b, i))
 			}
 		}
-		if headerH := y - restTop; headerH > 0 {
+		if len(heads) > 0 {
+			headerH := y - restTop
 			for _, k := range restKids {
 				shiftBox(k, headerH)
 			}
@@ -301,10 +367,17 @@ func splitViewBox(b *Box, boundary float64, m splitMode) (fit, rest *Box, grow f
 	}
 
 	restBox := *b
-	restBox.Children = append(kids, restKids...)
+	restBox.Children = append(heads, restKids...)
+	restBox.pending = nil
 	restBox.Frame.Y = restTop
 	restBox.Frame.H = (b.Frame.Y + b.Frame.H) - restTop + grow
 	return &fitBox, &restBox, grow
+}
+
+// header reports whether a box is a fixed in-flow box inside a View, or a copy
+// of one: the header of the rows after it.
+func header(b *Box) bool {
+	return b.copied || (b.Node != nil && b.Node.Fixed && !absolute(b))
 }
 
 // isHeader reports whether fitKids[i] is a header of b: an in-flow fixed child
@@ -312,6 +385,17 @@ func splitViewBox(b *Box, boundary float64, m splitMode) (fit, rest *Box, grow f
 func isHeader(b *Box, fitKids []*Box, i int) bool {
 	k := fitKids[i]
 	return k == b.Children[i] && k.Node != nil && k.Node.Fixed && !absolute(k)
+}
+
+// allCopies reports whether boxes holds nothing but header copies, which a page
+// must not hold alone: the same copies would open the next page too.
+func allCopies(boxes []*Box) bool {
+	for _, k := range boxes {
+		if !k.copied {
+			return false
+		}
+	}
+	return true
 }
 
 // headerAdvance is how far header child i of b pushes the content after it: from

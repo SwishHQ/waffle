@@ -96,7 +96,7 @@ A page fills top to bottom and breaks between children, or between the lines of 
 `fixed` repeats an element:
 
 - **A direct child of a `Page`** (a letterhead, a running header, a page-number footer) is drawn on every page.
-- **A child of a `View`** (a table's header row) stays in the flow on the first page. When the `View` splits, each continuation starts with a copy of it and the rows move down to make room, as react-pdf repeats a table header. A header is never left alone at the bottom of a page: if no row fits under it, it moves to the next page with its rows. A nested `fixed` box is also kept whole, like `wrap={false}`.
+- **A child of a `View`** (a table's header row) stays in the flow on the first page. When the `View` splits, each continuation starts with a copy of it and the rows move down to make room, as react-pdf repeats a table header. The copy sits where the header sat on the first page: below the `View`'s top border and padding, after its own top margin.
 
 ```jsx
 <View>
@@ -105,7 +105,13 @@ A page fills top to bottom and breaks between children, or between the lines of 
 </View>
 ```
 
-A `fixed` child repeats only in a column `View`, and only when it is in the normal flow (not `position: 'absolute'`). If a header and the row under it are too tall to share a page, that header stops repeating so the row can break.
+How a header behaves at a page break:
+
+- **Kept whole.** A nested `fixed` box never splits across pages, like `wrap={false}`, unless it is taller than a page.
+- **Never alone.** A header is not left at the bottom of a page: if no row fits under it, it moves to the next page with its rows.
+- **Left off when it can't fit.** If the next row can't fit under the header but fits a page on its own (a tall `wrap={false}` row, say), that one page shows the row without the header. The header returns on the page after.
+- **Break and `minPresenceAhead`.** On the first row under a header these are ignored, as they are on a `View`'s first child.
+- **When it doesn't repeat.** A `fixed` child repeats only in a column `View`, and only when it is in the normal flow, not `position: 'absolute'`.
 
 ## Architecture
 

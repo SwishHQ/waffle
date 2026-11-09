@@ -30,6 +30,13 @@ type Box struct {
 	SVG      *tree.Node // non-nil for Svg boxes (the subtree, drawn by the renderer)
 	Canvas   []any      // non-nil for Canvas boxes: the recorded painter ops
 	Children []*Box
+
+	// Pagination bookkeeping; the renderer never reads these.
+	edgeTop   float64 // paddingTop + borderTopWidth: where the content box starts
+	marginTop float64
+	copied    bool    // a header copy repeated atop a View's continuation
+	advance   float64 // for a copy: how far it pushes down the content after it
+	pending   []*Box  // header copies left off this page, repeated on the next
 }
 
 // ImageInfo is a decoded image ready to draw.
@@ -241,9 +248,11 @@ func toBox(ln *layoutNode, absX, absY float64) *Box {
 	x := absX + f.Left
 	y := absY + f.Top
 	box := &Box{
-		Node:  ln.tnode,
-		Style: ln.style,
-		Frame: Rect{X: x, Y: y, W: f.Width, H: f.Height},
+		Node:      ln.tnode,
+		Style:     ln.style,
+		Frame:     Rect{X: x, Y: y, W: f.Width, H: f.Height},
+		edgeTop:   ln.flex.Style.PaddingTop + ln.flex.Style.BorderTop,
+		marginTop: ln.flex.Style.MarginTop,
 	}
 	if t := ln.text; t != nil {
 		box.Text = &TextInfo{
