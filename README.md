@@ -89,6 +89,24 @@ waffle tree.json   out.pdf                  # pre-serialized waffle-tree/v1 → 
 | `waffle.RenderReact(ctx, src, props, w)` | One-shot compile + render. |
 | `waffle.RenderTree(ctx, treeJSON, w)` | Render a pre-serialized element tree from any producer of the contract — no JavaScript runs at all. |
 
+### Pagination
+
+A page fills top to bottom and breaks between children, or between the lines of a `Text`. An element that crosses the page bottom splits; one with `wrap={false}` moves whole to the next page instead, unless it is taller than a page.
+
+`fixed` repeats an element:
+
+- **A direct child of a `Page`** (a letterhead, a running header, a page-number footer) is drawn on every page.
+- **A child of a `View`** (a table's header row) stays in the flow on the first page. When the `View` splits, each continuation starts with a copy of it and the rows move down to make room, as react-pdf repeats a table header. A header is never left alone at the bottom of a page: if no row fits under it, it moves to the next page with its rows. A nested `fixed` box is also kept whole, like `wrap={false}`.
+
+```jsx
+<View>
+  <View fixed style={styles.headerRow}>…</View>
+  {rows.map((r) => <View key={r.id} wrap={false} style={styles.row}>…</View>)}
+</View>
+```
+
+A `fixed` child repeats only in a column `View`, and only when it is in the normal flow (not `position: 'absolute'`). If a header and the row under it are too tall to share a page, that header stops repeating so the row can break.
+
 ## Architecture
 
 Two phases: **compile once, render many**. The full picture is in
@@ -119,7 +137,7 @@ The Go pipeline then takes over:
 | tree | `internal/tree` | node model, structural validation, prop normalization |
 | styles | `internal/stylesheet` | units, colors, shorthands, media queries, inheritance |
 | layout | `internal/layout` | flexbox engine (`internal/flexbox`), text measurement (`internal/fontstore`: embedded-TTF glyph advances or AFM core-14 metrics), image/SVG sizing |
-| pagination | `internal/layout` | block + mid-element splits, forced breaks, `fixed` elements, orphans/widows, page-number substitution |
+| pagination | `internal/layout` | block + mid-element splits, forced breaks, `fixed` elements and repeated `View` headers, orphans/widows, page-number substitution |
 | paint | `internal/render` | boxes → PDF content streams: text runs, images, SVG, canvas replay, borders, gradient shadings, links, forms, outline |
 | write | `internal/pdf` | object model, Flate streams, font embedding (FontFile2), image XObjects, encryption, deterministic xref/trailer |
 
