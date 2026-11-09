@@ -39,7 +39,7 @@ func LoadURL(url string) (*Image, error) {
 	if err != nil {
 		return nil, fmt.Errorf("imaging: fetch %s: %w", url, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }() // read-only: a close error loses nothing
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
 		return nil, fmt.Errorf("imaging: fetch %s: %s", url, resp.Status)
 	}

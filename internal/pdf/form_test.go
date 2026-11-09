@@ -28,7 +28,9 @@ func TestAcroFormTextField(t *testing.T) {
 	}
 	if bin, _ := exec.LookPath("pdfcpu"); bin != "" {
 		p := filepath.Join(t.TempDir(), "form.pdf")
-		os.WriteFile(p, buf.Bytes(), 0o644)
+		if err := os.WriteFile(p, buf.Bytes(), 0o644); err != nil {
+			t.Fatal(err)
+		}
 		if out, err := exec.Command(bin, "validate", "-m", "strict", p).CombinedOutput(); err != nil {
 			t.Fatalf("pdfcpu validate failed: %v\n%s", err, out)
 		}
@@ -66,7 +68,9 @@ func TestAcroFormCheckbox(t *testing.T) {
 	}
 	if bin, _ := exec.LookPath("pdfcpu"); bin != "" {
 		p := filepath.Join(t.TempDir(), "cb.pdf")
-		os.WriteFile(p, buf.Bytes(), 0o644)
+		if err := os.WriteFile(p, buf.Bytes(), 0o644); err != nil {
+			t.Fatal(err)
+		}
 		if out, err := exec.Command(bin, "validate", "-m", "strict", p).CombinedOutput(); err != nil {
 			t.Fatalf("pdfcpu validate failed: %v\n%s", err, out)
 		}
@@ -105,7 +109,9 @@ func TestAcroFormChoice(t *testing.T) {
 	}
 	if bin, _ := exec.LookPath("pdfcpu"); bin != "" {
 		p := filepath.Join(t.TempDir(), "choice.pdf")
-		os.WriteFile(p, buf.Bytes(), 0o644)
+		if err := os.WriteFile(p, buf.Bytes(), 0o644); err != nil {
+			t.Fatal(err)
+		}
 		if out, err := exec.Command(bin, "validate", "-m", "strict", p).CombinedOutput(); err != nil {
 			t.Fatalf("pdfcpu validate failed: %v\n%s", err, out)
 		}

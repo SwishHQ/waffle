@@ -42,7 +42,6 @@ func main() {
 	if err != nil {
 		fatal(err)
 	}
-	defer out.Close()
 
 	ctx := context.Background()
 	var info *waffle.RenderInfo
@@ -67,6 +66,9 @@ func main() {
 		fatal(fmt.Errorf("unsupported input %q: want .jsx, .tsx, .js, .mjs, or .json", in))
 	}
 	if err != nil {
+		fatal(err)
+	}
+	if err := out.Close(); err != nil {
 		fatal(err)
 	}
 

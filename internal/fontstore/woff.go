@@ -66,7 +66,9 @@ func decodeWOFF(data []byte) ([]byte, error) {
 				return nil, fmt.Errorf("fontstore: WOFF table %d zlib: %w", i, err)
 			}
 			td, err = io.ReadAll(zr)
-			zr.Close()
+			if cerr := zr.Close(); err == nil {
+				err = cerr
+			}
 			if err != nil {
 				return nil, fmt.Errorf("fontstore: WOFF table %d inflate: %w", i, err)
 			}

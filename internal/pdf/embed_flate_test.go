@@ -33,10 +33,12 @@ func TestEmbeddedFontFlateProgramMemoized(t *testing.T) {
 	if err != nil {
 		t.Fatalf("zlib reader: %v", err)
 	}
-	defer zr.Close()
 	got, err := io.ReadAll(zr)
 	if err != nil {
 		t.Fatalf("inflate: %v", err)
+	}
+	if err := zr.Close(); err != nil {
+		t.Fatalf("inflate close: %v", err)
 	}
 	if !bytes.Equal(got, ef.Program) {
 		t.Error("compressed program does not round-trip to the original bytes")
