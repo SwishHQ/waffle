@@ -4,6 +4,8 @@ import (
 	"crypto/md5"
 	"fmt"
 	"io"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -286,17 +288,17 @@ func (d *Document) buildInfo() Dict {
 // deterministic inputs (e.g. a fixed CreationDate) the identifier is stable,
 // which keeps golden output byte-identical.
 func (d *Document) deriveID() [2][]byte {
-	h := md5.New()
-	io.WriteString(h, d.opts.Title)
-	io.WriteString(h, d.opts.Author)
-	io.WriteString(h, d.opts.Producer)
-	io.WriteString(h, d.opts.Creator)
+	var b strings.Builder
+	b.WriteString(d.opts.Title)
+	b.WriteString(d.opts.Author)
+	b.WriteString(d.opts.Producer)
+	b.WriteString(d.opts.Creator)
 	if !d.opts.CreationDate.IsZero() {
-		io.WriteString(h, d.opts.CreationDate.UTC().Format(time.RFC3339Nano))
+		b.WriteString(d.opts.CreationDate.UTC().Format(time.RFC3339Nano))
 	}
-	fmt.Fprintf(h, "objects=%d", len(d.w.objs))
-	sum := h.Sum(nil)
-	return [2][]byte{sum, sum}
+	b.WriteString("objects=" + strconv.Itoa(len(d.w.objs)))
+	sum := md5.Sum([]byte(b.String()))
+	return [2][]byte{sum[:], sum[:]}
 }
 
 // pdfDate formats a time as a PDF date string in UTC, e.g. D:20260101000000+00'00'.

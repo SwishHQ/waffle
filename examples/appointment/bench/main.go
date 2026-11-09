@@ -65,7 +65,11 @@ func main() {
 		if err != nil {
 			fatalf("create profile: %v", err)
 		}
-		defer f.Close()
+		defer func() {
+			if err := f.Close(); err != nil {
+				fatalf("close profile: %v", err)
+			}
+		}()
 		if err := pprof.StartCPUProfile(f); err != nil {
 			fatalf("start profile: %v", err)
 		}

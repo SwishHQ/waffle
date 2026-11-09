@@ -134,10 +134,10 @@ func inflateStreams(t *testing.T, pdf []byte) string {
 		}
 		data := rest[start : start+end]
 		if zr, err := zlib.NewReader(bytes.NewReader(data)); err == nil {
-			if b, err := io.ReadAll(zr); err == nil {
+			b, rerr := io.ReadAll(zr)
+			if cerr := zr.Close(); rerr == nil && cerr == nil {
 				out.Write(b)
 			}
-			zr.Close()
 		}
 		rest = rest[start+end+len("endstream"):]
 	}

@@ -76,11 +76,13 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer out.Close()
 
 	info, err := waffle.RenderReact(context.Background(), appointmentJSX, sampleProps(), out)
 	if err != nil {
 		log.Fatalf("render: %v", err)
+	}
+	if err := out.Close(); err != nil {
+		log.Fatalf("close: %v", err)
 	}
 	fmt.Printf("wrote %s (%d page(s))\n", filepath.Join(packageDir(), "appointment.pdf"), info.PageCount)
 	for _, w := range info.Warnings {

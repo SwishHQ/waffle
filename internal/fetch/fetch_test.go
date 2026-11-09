@@ -30,7 +30,9 @@ func TestBytesFile(t *testing.T) {
 
 func TestBytesURL(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("remote"))
+		if _, err := w.Write([]byte("remote")); err != nil {
+			t.Errorf("write: %v", err)
+		}
 	}))
 	defer srv.Close()
 	b, err := Bytes(srv.URL + "/font.ttf")
@@ -50,7 +52,9 @@ func TestBytesURLCap(t *testing.T) {
 	maxBytes = 4
 	defer func() { maxBytes = old }()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(strings.Repeat("x", 100)))
+		if _, err := w.Write([]byte(strings.Repeat("x", 100))); err != nil {
+			t.Errorf("write: %v", err)
+		}
 	}))
 	defer srv.Close()
 	if _, err := Bytes(srv.URL); err == nil || !strings.Contains(err.Error(), "limit") {

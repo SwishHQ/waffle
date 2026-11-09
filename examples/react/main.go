@@ -47,10 +47,12 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer out.Close()
 
 	info, err := tmpl.Render(context.Background(), props, out)
 	if err != nil {
+		log.Fatal(err)
+	}
+	if err := out.Close(); err != nil {
 		log.Fatal(err)
 	}
 	fmt.Printf("wrote invoice.pdf (%d page(s))\n", info.PageCount)

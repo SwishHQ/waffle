@@ -28,7 +28,9 @@ func TestNoteAnnotation(t *testing.T) {
 	}
 	if bin, _ := exec.LookPath("pdfcpu"); bin != "" {
 		p := filepath.Join(t.TempDir(), "note.pdf")
-		os.WriteFile(p, buf.Bytes(), 0o644)
+		if err := os.WriteFile(p, buf.Bytes(), 0o644); err != nil {
+			t.Fatal(err)
+		}
 		if out, err := exec.Command(bin, "validate", "-m", "strict", p).CombinedOutput(); err != nil {
 			t.Fatalf("pdfcpu validate failed: %v\n%s", err, out)
 		}

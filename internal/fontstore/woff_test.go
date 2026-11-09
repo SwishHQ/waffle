@@ -31,8 +31,12 @@ func encodeWOFF(t *testing.T, sfnt []byte) []byte {
 		raw := sfnt[offset : offset+length]
 		var zb bytes.Buffer
 		zw := zlib.NewWriter(&zb)
-		zw.Write(raw)
-		zw.Close()
+		if _, err := zw.Write(raw); err != nil {
+			t.Fatalf("deflate: %v", err)
+		}
+		if err := zw.Close(); err != nil {
+			t.Fatalf("deflate close: %v", err)
+		}
 		data := zb.Bytes()
 		if len(data) >= len(raw) {
 			data = raw // store uncompressed

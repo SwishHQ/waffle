@@ -41,9 +41,8 @@ func inflateStreams(t *testing.T, data []byte) string {
 		if err != nil {
 			continue
 		}
-		dec, err := io.ReadAll(zr)
-		zr.Close()
-		if err == nil {
+		dec, rerr := io.ReadAll(zr)
+		if cerr := zr.Close(); rerr == nil && cerr == nil {
 			out.Write(dec)
 		}
 	}
@@ -142,7 +141,9 @@ func TestRenderTextAlignCenter(t *testing.T) {
 		]}
 	]}}`)
 	var buf bytes.Buffer
-	Render(res, &buf, Options{})
+	if err := Render(res, &buf, Options{}); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
 	content := inflateStreams(t, buf.Bytes())
 	// Find the text matrix "1 0 0 1 X Y Tm"; X must be well right of 0.
 	m := regexp.MustCompile(`1 0 0 1 ([0-9.]+) [0-9.]+ Tm`).FindStringSubmatch(content)
@@ -163,7 +164,9 @@ func TestRenderJustify(t *testing.T) {
 		]}
 	]}}`)
 	var buf bytes.Buffer
-	Render(res, &buf, Options{})
+	if err := Render(res, &buf, Options{}); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
 	content := inflateStreams(t, buf.Bytes())
 	// At least one line must have a positive word spacing (Tw).
 	pos := false
