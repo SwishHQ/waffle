@@ -96,6 +96,9 @@ type RunFragment struct {
 type Page struct {
 	Width, Height float64
 	Root          *Box
+	// source is the index of the <Page> element this page was paginated from; subPageNumber
+	// counts within it.
+	source int
 }
 
 // Result is the laid-out document.
@@ -151,6 +154,7 @@ func Layout(t *tree.Tree, opts Options) (*Result, error) {
 	store, warns := opts.Cache.fontStore(t.Fonts)
 	res.Warnings = append(res.Warnings, warns...)
 
+	source := 0
 	for _, pageNode := range t.Root.Children {
 		if pageNode.Type != contract.TypePage {
 			continue
@@ -169,7 +173,12 @@ func Layout(t *tree.Tree, opts Options) (*Result, error) {
 		}
 		contentTop := lp(ln.style, "paddingTop", ctx) + lp(ln.style, "borderTopWidth", ctx)
 		availH := h - contentTop - lp(ln.style, "paddingBottom", ctx) - lp(ln.style, "borderBottomWidth", ctx)
+		start := len(res.Pages)
 		res.Pages = append(res.Pages, paginate(page, contentTop, availH, pageWraps(pageNode))...)
+		for _, pg := range res.Pages[start:] {
+			pg.source = source
+		}
+		source++
 	}
 	applyPageNumbers(res.Pages, opts.Eval)
 	return res, nil

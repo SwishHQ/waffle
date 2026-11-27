@@ -389,7 +389,7 @@ func resolveText(node *tree.Node, style map[string]any, media stylesheet.MediaCo
 		callbackID = node.Render.ID
 	}
 	if content == "" && template != "" {
-		content = renderTemplate(template, 1, 1)
+		content = renderTemplate(template, pageNumbers{page: 1, total: 1, subPage: 1, subTotal: 1})
 	}
 	if content == "" && callbackID != "" && eval != nil {
 		if s, err := eval.EvalText(callbackID, PageContext{PageNumber: 1, TotalPages: 1, SubPageNumber: 1, SubPageTotalPages: 1}); err == nil {
@@ -561,35 +561,46 @@ func capitalizeWords(s string) string {
 	return b.String()
 }
 
+// pageNumbers is one page's numbers: across the document, and within its <Page> element.
+type pageNumbers struct{ page, total, subPage, subTotal int }
+
 // renderTemplate substitutes page-number placeholders in a render template.
-func renderTemplate(tmpl string, pageNumber, totalPages int) string {
+func renderTemplate(tmpl string, n pageNumbers) string {
 	return strings.NewReplacer(
-		"{pageNumber}", strconv.Itoa(pageNumber),
-		"{totalPages}", strconv.Itoa(totalPages),
-		"{subPageNumber}", strconv.Itoa(pageNumber),
+		"{pageNumber}", strconv.Itoa(n.page),
+		"{totalPages}", strconv.Itoa(n.total),
+		"{subPageNumber}", strconv.Itoa(n.subPage),
+		"{subPageTotalPages}", strconv.Itoa(n.subTotal),
 	).Replace(tmpl)
 }
 
 // applyPageNumbers resolves per-page render-props on every page once the total
 // page count is known (a post-pagination pass). String templates are substituted
-// locally; function render-props are evaluated on the VM via eval. Global page
-// numbering.
+// locally; function render-props are evaluated on the VM via eval. pageNumber
+// counts the document; subPageNumber counts within the page's own <Page>
+// element, as in react-pdf.
 func applyPageNumbers(pages []*Page, eval Evaluator) {
-	total := len(pages)
+	perSource := map[int]int{}
+	for _, pg := range pages {
+		perSource[pg.source]++
+	}
+	seen := map[int]int{}
 	for i, pg := range pages {
-		substituteTemplates(pg.Root, i+1, total, eval)
+		seen[pg.source]++
+		n := pageNumbers{page: i + 1, total: len(pages), subPage: seen[pg.source], subTotal: perSource[pg.source]}
+		substituteTemplates(pg.Root, n, eval)
 	}
 }
 
-func substituteTemplates(b *Box, pageNumber, totalPages int, eval Evaluator) {
+func substituteTemplates(b *Box, n pageNumbers, eval Evaluator) {
 	if b.Text != nil {
 		switch {
 		case b.Text.Template != "":
-			content := applyTextTransform(renderTemplate(b.Text.Template, pageNumber, totalPages), b.Text.Transform)
+			content := applyTextTransform(renderTemplate(b.Text.Template, n), b.Text.Transform)
 			b.Text.Content = content
 			b.Text.Lines = []string{content} // page-number text is a single line
 		case b.Text.CallbackID != "" && eval != nil:
-			pc := PageContext{PageNumber: pageNumber, TotalPages: totalPages, SubPageNumber: pageNumber, SubPageTotalPages: totalPages}
+			pc := PageContext{PageNumber: n.page, TotalPages: n.total, SubPageNumber: n.subPage, SubPageTotalPages: n.subTotal}
 			if s, err := eval.EvalText(b.Text.CallbackID, pc); err == nil {
 				content := applyTextTransform(s, b.Text.Transform)
 				b.Text.Content = content
@@ -598,7 +609,7 @@ func substituteTemplates(b *Box, pageNumber, totalPages int, eval Evaluator) {
 		}
 	}
 	for _, c := range b.Children {
-		substituteTemplates(c, pageNumber, totalPages, eval)
+		substituteTemplates(c, n, eval)
 	}
 }
 
